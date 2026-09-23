@@ -27,6 +27,24 @@ docker-compose.yml   PostgreSQL (and, later, backend + frontend) for local + rev
 
 ## Getting Started
 
+### Quick start (scripts)
+
+With Docker, Python 3.12+, and Node 20+ installed, one command sets everything up
+(database, backend install + migrations + seed, frontend install):
+
+```bash
+bash scripts/setup.sh        # Windows: ./scripts/setup.ps1
+```
+
+Then run both servers together:
+
+```bash
+bash scripts/dev.sh          # Windows: ./scripts/dev.ps1
+```
+
+Frontend at http://localhost:3000, backend at http://localhost:8000 (Swagger at `/docs`).
+The manual steps below do the same thing if you prefer to run them yourself.
+
 ### 1. Database
 
 ```bash
