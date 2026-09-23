@@ -1,0 +1,7 @@
+# Keep the full default gitleaks ruleset.
+[extend]
+useDefault = true
+
+# Skip the .git/ directory: filesystem (--no-git) scans would otherwise walk it.
+[allowlist]
+paths = ['''(^|/)\.git/''']

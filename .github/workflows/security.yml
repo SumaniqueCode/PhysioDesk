@@ -1,0 +1,98 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # persist-credentials: false keeps the GITHUB_TOKEN out of .git/config.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # OSS gitleaks CLI via Docker (no org-only license). Filesystem mode
+      # (--no-git) avoids invoking git on the root-owned workspace mount;
+      # .gitleaks.toml keeps the default rules but skips the .git/ directory.
+      # The config is trusted: this repo takes no external-PR contributions.
+      # For a public repo accepting outside PRs, resolve it from the base branch
+      # so a PR cannot broaden its own allowlist.
+      - uses: docker://ghcr.io/gitleaks/gitleaks:v8.18.4
+        with:
+          args: detect --no-git --source=. --redact --config=.gitleaks.toml
+
+  backend-audit:
+    name: Backend deps + SAST
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-python-backend
+
+      - name: Install project (deps only, no audit tools)
+        run: pip install -e .
+
+      # Audit the project's resolved dependencies, not the tools that scan them.
+      - name: Freeze project dependencies
+        run: pip freeze --exclude-editable > requirements-audit.txt
+
+      # --no-deps: the freeze already lists the full closure; don't re-resolve.
+      - name: Dependency vulnerabilities (pip-audit)
+        run: pipx run pip-audit -r requirements-audit.txt --no-deps
+
+      - name: Static analysis (bandit)
+        run: pipx run bandit -r app -ll -ii
+
+  frontend-audit:
+    name: Frontend deps
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-frontend
+      # Non-blocking: report advisories but don't wedge CI on unfixable ones.
+      - name: Dependency vulnerabilities (npm audit)
+        run: npm audit --audit-level=high || true
+
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Code scanning needs Advanced Security on private repos. Run only on push/PR
+    # for non-private repos; skip schedule (its payload lacks repository context).
+    if: ${{ github.event_name != 'schedule' && github.event.repository.private != true }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@v3
