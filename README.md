@@ -50,7 +50,23 @@ App runs at http://localhost:3000. The component library lives at
 
 ### 3. Backend
 
-Backend setup, migrations, seed, and API docs (`/docs`) are documented here as those parts land.
+```bash
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1      # macOS/Linux: source .venv/bin/activate
+pip install -e ".[dev]"
+cp .env.example .env              # set DATABASE_URL if not using the docker Postgres
+alembic upgrade head              # build the schema from scratch
+python -m scripts.seed            # create the test users
+uvicorn app.main:app --reload
+```
+
+API runs at http://localhost:8000. Interactive OpenAPI/Swagger docs:
+[http://localhost:8000/docs](http://localhost:8000/docs).
+
+**Database URL:** the default (`postgresql+asyncpg://physiodesk:physiodesk@localhost:5432/physiodesk`)
+matches the docker Postgres. To use a local Postgres instead, create a `physiodesk` database and set
+`DATABASE_URL` in `backend/.env` to your own credentials.
 
 ## Documentation
 
@@ -74,5 +90,11 @@ Decisions made where the spec left room:
 
 ## Test Credentials
 
-Populated by the seed script (added with the backend). Both an Admin and a Staff account are
-provided so reviewers can evaluate role enforcement.
+Created by the seed script:
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | `admin@physiodesk.com` | `Admin@123` |
+| Staff | `staff@physiodesk.com` | `Staff@123` |
+
+Admin has full access; Staff is restricted (read-only Billing, no Therapist management).
