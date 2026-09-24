@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// Landing route; real home becomes the dashboard once auth lands.
+// Home: send to the dashboard; the authenticated layout bounces guests to /login.
 export default function Home() {
-  redirect("/design-system");
+  redirect("/dashboard");
 }
