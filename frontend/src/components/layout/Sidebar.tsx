@@ -19,7 +19,7 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col bg-secondary text-white/70">
       <Link href="/" className="flex items-center gap-2.5 px-6 py-6">
-        <Image src="/logo.png" alt="PhysioDesk" width={32} height={32} className="rounded-lg" priority />
+        <Image src="/logo-white.png" alt="PhysioDesk" width={32} height={32} className="rounded-lg" priority />
         <span className="font-display text-lg font-semibold text-white">PhysioDesk</span>
       </Link>
       <nav className="flex flex-1 flex-col gap-1 px-3">
