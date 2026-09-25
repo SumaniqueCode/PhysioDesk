@@ -21,6 +21,11 @@ class PermissionDeniedError(AppError):
         super().__init__(403, detail)
 
 
+class NotFoundError(AppError):
+    def __init__(self, detail: str = "Resource not found") -> None:
+        super().__init__(404, detail)
+
+
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
