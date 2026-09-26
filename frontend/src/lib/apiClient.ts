@@ -1,5 +1,6 @@
 import { useAuthStore } from "@/stores/authStore";
 import type { TokenResponse } from "@/types/auth";
+import type { Page } from "@/types/common";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
@@ -72,4 +73,16 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
   // Tolerate empty success bodies (204, or any 2xx with no content).
   const text = await res.text();
   return (text ? JSON.parse(text) : undefined) as T;
+}
+
+// Walk a paginated endpoint to completion, returning every item; for small option lists.
+export async function fetchAllPages<T>(path: string, pageSize = 100): Promise<T[]> {
+  const sep = path.includes("?") ? "&" : "?";
+  const items: T[] = [];
+  for (let page = 1; ; page += 1) {
+    const res = await apiFetch<Page<T>>(`${path}${sep}page=${page}&page_size=${pageSize}`);
+    items.push(...res.items);
+    if (items.length >= res.total || res.items.length === 0) break;
+  }
+  return items;
 }

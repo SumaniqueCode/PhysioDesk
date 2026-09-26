@@ -7,7 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { apiFetch } from "@/lib/apiClient";
+import { apiFetch, fetchAllPages } from "@/lib/apiClient";
 import { toastError } from "@/lib/toastError";
 import type { Page } from "@/types/common";
 import type {
@@ -57,18 +57,7 @@ export function useTherapists(params: TherapistListParams) {
 export function useActiveTherapists() {
   return useQuery({
     queryKey: ["therapists", "active-options"],
-    queryFn: async () => {
-      const pageSize = 100;
-      const items: Therapist[] = [];
-      for (let page = 1; ; page += 1) {
-        const res = await apiFetch<Page<Therapist>>(
-          `/therapists?is_active=true&page=${page}&page_size=${pageSize}`,
-        );
-        items.push(...res.items);
-        if (items.length >= res.total || res.items.length === 0) break;
-      }
-      return items;
-    },
+    queryFn: () => fetchAllPages<Therapist>("/therapists?is_active=true"),
     staleTime: 60_000,
   });
 }

@@ -7,7 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { apiFetch } from "@/lib/apiClient";
+import { apiFetch, fetchAllPages } from "@/lib/apiClient";
 import { toastError } from "@/lib/toastError";
 import type { Page } from "@/types/common";
 import type { Patient, PatientPayload, PatientStatus } from "@/types/patient";
@@ -42,6 +42,15 @@ export function usePatients(params: PatientListParams) {
     queryFn: () => apiFetch<Page<Patient>>(`/patients?${buildQuery(params)}`),
     // Keep the current page visible while the next page or a new search loads.
     placeholderData: keepPreviousData,
+  });
+}
+
+// Flat list of every patient for booking dropdowns; pages so it is never truncated.
+export function useAllPatients() {
+  return useQuery({
+    queryKey: ["patients", "options"],
+    queryFn: () => fetchAllPages<Patient>("/patients"),
+    staleTime: 60_000,
   });
 }
 
