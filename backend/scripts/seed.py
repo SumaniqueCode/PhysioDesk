@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from app.core.security import hash_password
 from app.db.session import AsyncSessionLocal
+from app.models.appointment import Appointment, AppointmentStatus, PaymentMethod
 from app.models.patient import Patient, PatientStatus
 from app.models.therapist import Therapist
 from app.models.user import User, UserRole
@@ -106,6 +107,67 @@ SEED_PATIENTS = [
 ]
 
 
+_PAYMENT_CYCLE = [PaymentMethod.card, PaymentMethod.cash, PaymentMethod.insurance]
+
+
+def _nearest_working_date(base: dt.date, working_days: list[int], direction: int) -> dt.date:
+    # Walk day-by-day from base until we hit a weekday the therapist works.
+    day = base + dt.timedelta(days=direction)
+    for _ in range(14):
+        if day.weekday() in working_days:
+            return day
+        day += dt.timedelta(days=direction)
+    return base
+
+
+def _slot_end(start: dt.time, minutes: int) -> dt.time:
+    return (dt.datetime.combine(dt.date.min, start) + dt.timedelta(minutes=minutes)).time()
+
+
+async def _seed_appointments(session) -> int:
+    today = dt.date.today()
+    created = 0
+    for i, data in enumerate(SEED_PATIENTS):
+        patient = await session.scalar(
+            select(Patient).where(Patient.full_name == data["full_name"])
+        )
+        therapist = await session.scalar(
+            select(Therapist).where(Therapist.full_name == data["therapist_name"])
+        )
+        if patient is None or therapist is None:
+            continue
+        # One completed visit in the past and one upcoming booking per patient.
+        plan = [
+            (_nearest_working_date(today, therapist.working_days, -1), AppointmentStatus.completed),
+            (_nearest_working_date(today, therapist.working_days, 1), AppointmentStatus.scheduled),
+        ]
+        for date, status in plan:
+            start = therapist.start_time
+            exists = await session.scalar(
+                select(Appointment).where(
+                    Appointment.therapist_id == therapist.id,
+                    Appointment.date == date,
+                    Appointment.start_time == start,
+                )
+            )
+            if exists:
+                continue
+            session.add(
+                Appointment(
+                    patient_id=patient.id,
+                    therapist_id=therapist.id,
+                    date=date,
+                    start_time=start,
+                    end_time=_slot_end(start, therapist.slot_duration_minutes),
+                    status=status,
+                    payment_method=_PAYMENT_CYCLE[i % len(_PAYMENT_CYCLE)],
+                    notes=None,
+                )
+            )
+            created += 1
+    return created
+
+
 async def seed() -> None:
     async with AsyncSessionLocal() as session:
         for data in SEED_USERS:
@@ -147,12 +209,13 @@ async def seed() -> None:
                 Patient(**fields, assigned_therapist_id=therapist.id if therapist else None)
             )
 
+        # Flush so patients get ids before their appointments reference them.
+        await session.flush()
+        await _seed_appointments(session)
+
         await session.commit()
-    print("Seed complete.")
-    print("  admin@physiodesk.com / Admin@123 (admin)")
-    print("  staff@physiodesk.com / Staff@123 (staff)")
-    print(f"  {len(SEED_THERAPISTS)} therapists")
-    print(f"  {len(SEED_PATIENTS)} patients")
+    # Nothing about the seeded records is logged; the README lists the test logins.
+    print("Seed complete. See the README for test login credentials.")
 
 
 if __name__ == "__main__":
