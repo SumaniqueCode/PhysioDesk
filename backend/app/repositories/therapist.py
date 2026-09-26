@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime as dt
 
 from sqlalchemy import func, or_, select
@@ -64,6 +66,13 @@ class TherapistRepository:
             )
         )
         return result.scalar_one_or_none()
+
+    async def overrides_for_date(self, date: dt.date) -> list[TherapistScheduleOverride]:
+        # Every therapist's override for one date, so callers avoid a per-therapist query.
+        result = await self.session.execute(
+            select(TherapistScheduleOverride).where(TherapistScheduleOverride.date == date)
+        )
+        return list(result.scalars().all())
 
     async def delete_override(self, override: TherapistScheduleOverride) -> None:
         await self.session.delete(override)

@@ -1,3 +1,4 @@
+from app.models.appointment import Appointment, AppointmentStatus, PaymentMethod
 from app.models.patient import Patient, PatientStatus
 from app.models.refresh_token import RefreshToken
 from app.models.therapist import Therapist, TherapistScheduleOverride
@@ -11,4 +12,7 @@ __all__ = [
     "TherapistScheduleOverride",
     "Patient",
     "PatientStatus",
+    "Appointment",
+    "AppointmentStatus",
+    "PaymentMethod",
 ]
