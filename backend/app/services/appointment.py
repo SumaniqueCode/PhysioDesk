@@ -93,15 +93,11 @@ class AppointmentService:
         therapist = await self._active_therapist(therapist_id)
         slots = await self._slots_for(therapist, target_date)
         booked = await self.repo.booked_starts(therapist_id, target_date)
-        open_slots = [
-            OpenSlot(start_time=s, end_time=e) for s, e in slots if s not in booked
-        ]
+        open_slots = [OpenSlot(start_time=s, end_time=e) for s, e in slots if s not in booked]
         return Availability(date=target_date, therapist_id=therapist_id, slots=open_slots)
 
     async def day_schedule(self, target_date: dt.date) -> DaySchedule:
-        therapists, _ = await self.therapists.list(
-            search=None, is_active=True, offset=0, limit=100
-        )
+        therapists, _ = await self.therapists.list(search=None, is_active=True, offset=0, limit=100)
         appointments = await self.repo.for_date(target_date)
         by_therapist: dict[int, dict[dt.time, Appointment]] = {}
         for appt in appointments:
