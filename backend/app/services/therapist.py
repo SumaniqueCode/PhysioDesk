@@ -38,6 +38,9 @@ class TherapistService:
         therapist = Therapist(**payload.model_dump())
         self.repo.add(therapist)
         await self.session.flush()
+        # A new therapist has no overrides; set the collection so serializing
+        # TherapistDetail doesn't trigger an async lazy-load.
+        therapist.schedule_overrides = []
         return therapist
 
     async def update(self, therapist_id: int, payload: TherapistUpdate) -> Therapist:
