@@ -7,7 +7,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { apiFetch, ApiError } from "@/lib/apiClient";
+import { apiFetch } from "@/lib/apiClient";
+import { toastError } from "@/lib/toastError";
 import type { Page } from "@/types/common";
 import type {
   ScheduleOverride,
@@ -42,17 +43,33 @@ function buildQuery(params: TherapistListParams): string {
   return qs.toString();
 }
 
-function toastError(err: unknown, fallback: string) {
-  const detail = err instanceof ApiError ? err.message : fallback;
-  toast.error(detail || fallback);
-}
-
 export function useTherapists(params: TherapistListParams) {
   return useQuery({
     queryKey: keys.list(params),
     queryFn: () => apiFetch<Page<Therapist>>(`/therapists?${buildQuery(params)}`),
     // Keep the current page visible while the next page or a new search loads.
     placeholderData: keepPreviousData,
+  });
+}
+
+// Flat list of every active therapist for assignment dropdowns and roster filters;
+// pages through the API so the list is never silently truncated.
+export function useActiveTherapists() {
+  return useQuery({
+    queryKey: ["therapists", "active-options"],
+    queryFn: async () => {
+      const pageSize = 100;
+      const items: Therapist[] = [];
+      for (let page = 1; ; page += 1) {
+        const res = await apiFetch<Page<Therapist>>(
+          `/therapists?is_active=true&page=${page}&page_size=${pageSize}`,
+        );
+        items.push(...res.items);
+        if (items.length >= res.total || res.items.length === 0) break;
+      }
+      return items;
+    },
+    staleTime: 60_000,
   });
 }
 
