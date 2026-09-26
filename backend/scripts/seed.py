@@ -211,13 +211,11 @@ async def seed() -> None:
 
         # Flush so patients get ids before their appointments reference them.
         await session.flush()
-        appointments = await _seed_appointments(session)
+        await _seed_appointments(session)
 
         await session.commit()
-    # Credentials are intentionally not logged; the README lists the test logins.
+    # Nothing about the seeded records is logged; the README lists the test logins.
     print("Seed complete. See the README for test login credentials.")
-    print(f"  {len(SEED_USERS)} users, {len(SEED_THERAPISTS)} therapists")
-    print(f"  {len(SEED_PATIENTS)} patients, {appointments} appointments")
 
 
 if __name__ == "__main__":
