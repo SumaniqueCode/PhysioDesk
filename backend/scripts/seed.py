@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from app.core.security import hash_password
 from app.db.session import AsyncSessionLocal
+from app.models.patient import Patient, PatientStatus
 from app.models.therapist import Therapist
 from app.models.user import User, UserRole
 
@@ -60,6 +61,51 @@ SEED_THERAPISTS = [
 ]
 
 
+# therapist_name is resolved to an assigned_therapist_id at seed time.
+SEED_PATIENTS = [
+    {
+        "full_name": "Ella Bennett",
+        "email": "ella.bennett@example.com",
+        "phone": "555-0142",
+        "date_of_birth": dt.date(1991, 4, 18),
+        "address": "12 Rosewood Ave, Springfield",
+        "medical_notes": "Post-ACL reconstruction; building quad strength.",
+        "status": PatientStatus.active,
+        "therapist_name": "Dr. Anita Rao",
+    },
+    {
+        "full_name": "Owen Carter",
+        "email": "owen.carter@example.com",
+        "phone": "555-0177",
+        "date_of_birth": dt.date(1978, 11, 2),
+        "address": "8 Maple Street, Springfield",
+        "medical_notes": "Chronic lower-back pain; postural correction plan.",
+        "status": PatientStatus.active,
+        "therapist_name": "Dr. Marcus Lim",
+    },
+    {
+        "full_name": "Sofia Alvarez",
+        "email": "sofia.alvarez@example.com",
+        "phone": "555-0193",
+        "date_of_birth": dt.date(2015, 6, 27),
+        "address": "45 Birch Lane, Springfield",
+        "medical_notes": "Pediatric gait training; reviews fortnightly.",
+        "status": PatientStatus.on_hold,
+        "therapist_name": "Dr. Samuel Okafor",
+    },
+    {
+        "full_name": "Henry Whitfield",
+        "email": None,
+        "phone": "555-0210",
+        "date_of_birth": dt.date(1963, 1, 9),
+        "address": "3 Cedar Court, Springfield",
+        "medical_notes": "Stroke rehabilitation; discharged after goals met.",
+        "status": PatientStatus.completed,
+        "therapist_name": "Dr. Priya Nair",
+    },
+]
+
+
 async def seed() -> None:
     async with AsyncSessionLocal() as session:
         for data in SEED_USERS:
@@ -84,11 +130,29 @@ async def seed() -> None:
                 continue
             session.add(Therapist(**data))
 
+        # Flush so newly seeded therapists get ids before patients reference them by name.
+        await session.flush()
+
+        for data in SEED_PATIENTS:
+            exists = await session.scalar(
+                select(Patient).where(Patient.full_name == data["full_name"])
+            )
+            if exists:
+                continue
+            therapist = await session.scalar(
+                select(Therapist).where(Therapist.full_name == data["therapist_name"])
+            )
+            fields = {k: v for k, v in data.items() if k != "therapist_name"}
+            session.add(
+                Patient(**fields, assigned_therapist_id=therapist.id if therapist else None)
+            )
+
         await session.commit()
     print("Seed complete.")
     print("  admin@physiodesk.com / Admin@123 (admin)")
     print("  staff@physiodesk.com / Staff@123 (staff)")
     print(f"  {len(SEED_THERAPISTS)} therapists")
+    print(f"  {len(SEED_PATIENTS)} patients")
 
 
 if __name__ == "__main__":
