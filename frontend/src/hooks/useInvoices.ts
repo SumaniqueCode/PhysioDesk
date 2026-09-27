@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { apiFetch } from "@/lib/apiClient";
+import { apiFetch, fetchAllPages } from "@/lib/apiClient";
 import { toastError } from "@/lib/toastError";
 import type { Page } from "@/types/common";
 import type {
@@ -38,6 +38,15 @@ export function useInvoiceList(params: InvoiceListParams) {
     queryKey: keys.list(params),
     queryFn: () => apiFetch<Page<Invoice>>(`/invoices?${qs.toString()}`),
     placeholderData: keepPreviousData,
+  });
+}
+
+// A patient's full billing history, most-recent first, for the profile page.
+export function usePatientInvoices(patientId: number) {
+  return useQuery({
+    queryKey: ["invoices", "patient", patientId],
+    queryFn: () => fetchAllPages<Invoice>(`/invoices?patient_id=${patientId}`),
+    enabled: Number.isFinite(patientId),
   });
 }
 

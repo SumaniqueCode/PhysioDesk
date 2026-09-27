@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Search, Stethoscope, UserCheck, UserX } from "lucide-react";
+import { Eye, Pencil, Plus, Search, Stethoscope, UserCheck, UserX } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import {
   Button,
@@ -166,7 +166,7 @@ export default function TherapistsPage() {
                     <Th>Hours</Th>
                     <Th className="text-right">Weekly</Th>
                     <Th>Status</Th>
-                    {isAdmin && <Th className="text-right">Actions</Th>}
+                    <Th className="text-right">Actions</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -184,33 +184,41 @@ export default function TherapistsPage() {
                           {t.is_active ? "Active" : "Inactive"}
                         </StatusPill>
                       </Td>
-                      {isAdmin && (
-                        <Td onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-end gap-1">
-                            <IconButton aria-label="Edit therapist" onClick={() => setEditing(t)}>
-                              <Pencil className="size-4" />
-                            </IconButton>
-                            {t.is_active ? (
-                              <IconButton
-                                aria-label="Deactivate therapist"
-                                onClick={() => setDeactivating(t)}
-                              >
-                                <UserX className="size-4" />
+                      <Td onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end gap-1">
+                          <IconButton
+                            aria-label="View therapist"
+                            onClick={() => router.push(`/therapists/${t.id}`)}
+                          >
+                            <Eye className="size-4" />
+                          </IconButton>
+                          {isAdmin && (
+                            <>
+                              <IconButton aria-label="Edit therapist" onClick={() => setEditing(t)}>
+                                <Pencil className="size-4" />
                               </IconButton>
-                            ) : (
-                              <IconButton
-                                aria-label="Reactivate therapist"
-                                disabled={reactivate.isPending}
-                                onClick={() =>
-                                  reactivate.mutate(t.id, { onSuccess: stepBackIfLastOnPage })
-                                }
-                              >
-                                <UserCheck className="size-4" />
-                              </IconButton>
-                            )}
-                          </div>
-                        </Td>
-                      )}
+                              {t.is_active ? (
+                                <IconButton
+                                  aria-label="Deactivate therapist"
+                                  onClick={() => setDeactivating(t)}
+                                >
+                                  <UserX className="size-4" />
+                                </IconButton>
+                              ) : (
+                                <IconButton
+                                  aria-label="Reactivate therapist"
+                                  disabled={reactivate.isPending}
+                                  onClick={() =>
+                                    reactivate.mutate(t.id, { onSuccess: stepBackIfLastOnPage })
+                                  }
+                                >
+                                  <UserCheck className="size-4" />
+                                </IconButton>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </Td>
                     </Tr>
                   ))}
                 </tbody>

@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { apiFetch } from "@/lib/apiClient";
+import { apiFetch, fetchAllPages } from "@/lib/apiClient";
 import { toastError } from "@/lib/toastError";
 import type { Page } from "@/types/common";
 import type {
@@ -64,6 +64,15 @@ export function useAppointmentList(params: AppointmentListParams) {
     queryKey: keys.list(params),
     queryFn: () => apiFetch<Page<Appointment>>(`/appointments?${qs.toString()}`),
     placeholderData: keepPreviousData,
+  });
+}
+
+// A patient's full appointment history, most-recent first, for the profile page.
+export function usePatientAppointments(patientId: number) {
+  return useQuery({
+    queryKey: ["appointments", "patient", patientId],
+    queryFn: () => fetchAllPages<Appointment>(`/appointments?patient_id=${patientId}`),
+    enabled: Number.isFinite(patientId),
   });
 }
 

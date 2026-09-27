@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Trash2 } from "lucide-react";
+import { CalendarDays, Pencil, Receipt, Trash2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import {
   Breadcrumb,
@@ -15,12 +15,21 @@ import {
   ConfirmDialog,
   EmptyState,
   Skeleton,
+  SkeletonTable,
   StatusPill,
+  Table,
+  Td,
+  Th,
+  Tr,
 } from "@/components/ui";
 import { PatientFormModal } from "@/components/patients/PatientFormModal";
 import { usePatient, useDeletePatient } from "@/hooks/usePatients";
+import { usePatientAppointments } from "@/hooks/useAppointments";
+import { usePatientInvoices } from "@/hooks/useInvoices";
 import { statusLabel, statusTone } from "@/lib/patient";
-import { formatDate } from "@/lib/schedule";
+import { appointmentStatusLabel, appointmentStatusTone } from "@/lib/appointment";
+import { formatCurrency, invoiceStatusLabel, invoiceStatusTone } from "@/lib/invoice";
+import { formatDate, formatTime } from "@/lib/schedule";
 import type { ReactNode } from "react";
 
 function Field({ label, value }: { label: string; value: ReactNode }) {
@@ -141,9 +150,8 @@ export default function PatientDetailPage() {
           </CardBody>
         </Card>
 
-        <p className="text-sm text-muted">
-          Appointment history and invoices appear once scheduling and billing are available.
-        </p>
+        <SessionHistory patientId={patient.id} />
+        <BillingHistory patientId={patient.id} />
 
         <div>
           <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)}>
@@ -167,5 +175,147 @@ export default function PatientDetailPage() {
         onClose={() => setConfirmDelete(false)}
       />
     </>
+  );
+}
+
+function HistoryCard({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count?: number;
+  children: ReactNode;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {count != null && (
+          <span className="text-sm text-muted">
+            {count} {count === 1 ? "record" : "records"}
+          </span>
+        )}
+      </CardHeader>
+      <CardBody className="p-0">{children}</CardBody>
+    </Card>
+  );
+}
+
+function SessionHistory({ patientId }: { patientId: number }) {
+  const { data, isLoading, isError } = usePatientAppointments(patientId);
+
+  return (
+    <HistoryCard title="Session history" count={data?.length}>
+      {isLoading ? (
+        <div className="p-5">
+          <SkeletonTable rows={3} />
+        </div>
+      ) : isError ? (
+        <EmptyState
+          className="border-0"
+          icon={<CalendarDays className="size-8" />}
+          title="Couldn't load sessions"
+          description="Please refresh the page and try again."
+        />
+      ) : !data || data.length === 0 ? (
+        <EmptyState
+          className="border-0"
+          icon={<CalendarDays className="size-8" />}
+          title="No sessions yet"
+          description="Appointments booked for this patient will show up here."
+        />
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <thead>
+              <tr>
+                <Th>Date</Th>
+                <Th>Time</Th>
+                <Th>Therapist</Th>
+                <Th>Status</Th>
+                <Th>Notes</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((appt) => (
+                <Tr key={appt.id}>
+                  <Td className="whitespace-nowrap text-foreground">{formatDate(appt.date)}</Td>
+                  <Td className="whitespace-nowrap text-muted">
+                    {formatTime(appt.start_time)} – {formatTime(appt.end_time)}
+                  </Td>
+                  <Td className="text-muted">{appt.therapist.full_name}</Td>
+                  <Td>
+                    <StatusPill tone={appointmentStatusTone(appt.status)}>
+                      {appointmentStatusLabel(appt.status)}
+                    </StatusPill>
+                  </Td>
+                  <Td className="max-w-xs truncate text-muted">{appt.notes ?? "—"}</Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+      )}
+    </HistoryCard>
+  );
+}
+
+function BillingHistory({ patientId }: { patientId: number }) {
+  const { data, isLoading, isError } = usePatientInvoices(patientId);
+
+  return (
+    <HistoryCard title="Billing history" count={data?.length}>
+      {isLoading ? (
+        <div className="p-5">
+          <SkeletonTable rows={3} />
+        </div>
+      ) : isError ? (
+        <EmptyState
+          className="border-0"
+          icon={<Receipt className="size-8" />}
+          title="Couldn't load invoices"
+          description="Please refresh the page and try again."
+        />
+      ) : !data || data.length === 0 ? (
+        <EmptyState
+          className="border-0"
+          icon={<Receipt className="size-8" />}
+          title="No invoices yet"
+          description="Invoices raised for this patient will show up here."
+        />
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <thead>
+              <tr>
+                <Th>Date</Th>
+                <Th>Service</Th>
+                <Th className="text-right">Amount</Th>
+                <Th>Status</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((inv) => (
+                <Tr key={inv.id}>
+                  <Td className="whitespace-nowrap text-foreground">
+                    {formatDate(inv.issued_date)}
+                  </Td>
+                  <Td className="text-muted">{inv.service}</Td>
+                  <Td className="text-right font-mono text-foreground">
+                    {formatCurrency(inv.total)}
+                  </Td>
+                  <Td>
+                    <StatusPill tone={invoiceStatusTone(inv.status)}>
+                      {invoiceStatusLabel(inv.status)}
+                    </StatusPill>
+                  </Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+      )}
+    </HistoryCard>
   );
 }

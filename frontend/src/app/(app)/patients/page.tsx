@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Search, Trash2, Users } from "lucide-react";
+import { Eye, Pencil, Plus, Search, Trash2, Users } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import {
   Button,
@@ -196,6 +196,12 @@ export default function PatientsPage() {
                       </Td>
                       <Td onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
+                          <IconButton
+                            aria-label="View patient"
+                            onClick={() => router.push(`/patients/${p.id}`)}
+                          >
+                            <Eye className="size-4" />
+                          </IconButton>
                           <IconButton aria-label="Edit patient" onClick={() => setEditing(p)}>
                             <Pencil className="size-4" />
                           </IconButton>
