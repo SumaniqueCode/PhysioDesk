@@ -18,8 +18,15 @@ export function invoiceStatusTone(status: InvoiceStatus): Tone {
   return STATUS_META[status]?.tone ?? "neutral";
 }
 
+// Assumption: the clinic bills in USD. Change these two constants to relocalize every amount.
+export const CURRENCY_LOCALE = "en-US";
+export const CURRENCY_CODE = "USD";
+
 // Amounts travel as decimal strings to avoid float drift; format them for display only.
-const CURRENCY = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const CURRENCY = new Intl.NumberFormat(CURRENCY_LOCALE, {
+  style: "currency",
+  currency: CURRENCY_CODE,
+});
 
 export function formatCurrency(value: string | number): string {
   const n = typeof value === "number" ? value : Number(value);

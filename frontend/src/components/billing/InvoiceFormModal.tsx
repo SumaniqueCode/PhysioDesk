@@ -11,12 +11,17 @@ import { useAllPatients } from "@/hooks/usePatients";
 import { useCreateInvoice, useUpdateInvoice } from "@/hooks/useInvoices";
 import type { Invoice, InvoiceCreatePayload, InvoiceUpdatePayload } from "@/types/invoice";
 
+// Non-negative money with at most two decimals, matching the server's Decimal(scale=2).
+const MONEY_RE = /^\d+(\.\d{1,2})?$/;
+
 const schema = z
   .object({
     patient_id: z.string().min(1, "Select a patient"),
     service: z.string().trim().min(1, "Service is required").max(160),
-    amount: z.string().refine((v) => v !== "" && Number(v) >= 0, "Enter a valid amount"),
-    discount: z.string().refine((v) => v === "" || Number(v) >= 0, "Enter a valid discount"),
+    amount: z.string().refine((v) => MONEY_RE.test(v), "Enter an amount with up to 2 decimals"),
+    discount: z
+      .string()
+      .refine((v) => v === "" || MONEY_RE.test(v), "Enter a discount with up to 2 decimals"),
     status: z.enum(["due", "paid"]),
     payment_method: z.enum(["cash", "card", "insurance"]),
     issued_date: z.string().min(1, "Pick a date"),
@@ -43,10 +48,9 @@ function defaults(invoice?: Invoice): FormValues {
   };
 }
 
-function toCreate(v: FormValues): InvoiceCreatePayload {
+// Fields shared by create and edit; the create payload adds the immutable patient/appointment links.
+function commonFields(v: FormValues) {
   return {
-    patient_id: Number(v.patient_id),
-    appointment_id: null,
     service: v.service.trim(),
     amount: v.amount,
     discount: v.discount || "0",
@@ -57,16 +61,12 @@ function toCreate(v: FormValues): InvoiceCreatePayload {
   };
 }
 
+function toCreate(v: FormValues): InvoiceCreatePayload {
+  return { patient_id: Number(v.patient_id), appointment_id: null, ...commonFields(v) };
+}
+
 function toUpdate(v: FormValues): InvoiceUpdatePayload {
-  return {
-    service: v.service.trim(),
-    amount: v.amount,
-    discount: v.discount || "0",
-    status: v.status,
-    payment_method: v.payment_method,
-    issued_date: v.issued_date,
-    notes: v.notes.trim() ? v.notes.trim() : null,
-  };
+  return commonFields(v);
 }
 
 export function InvoiceFormModal({

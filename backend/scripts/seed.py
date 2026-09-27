@@ -202,6 +202,12 @@ async def _seed_invoices(session) -> None:
         # A settled invoice for the past visit and an outstanding one for the upcoming visit.
         if completed is not None:
             service, amount, discount = _SERVICES[i % len(_SERVICES)]
+            # Collect the first patient's payment today so the dashboard revenue stat is non-zero.
+            collected = (
+                dt.datetime.now(dt.UTC)
+                if i == 0
+                else dt.datetime.combine(completed.date, dt.time(12, 0), dt.UTC)
+            )
             session.add(
                 Invoice(
                     patient_id=patient.id,
@@ -212,7 +218,7 @@ async def _seed_invoices(session) -> None:
                     status=InvoiceStatus.paid,
                     payment_method=method,
                     issued_date=completed.date,
-                    paid_at=dt.datetime.combine(completed.date, dt.time(12, 0), dt.UTC),
+                    paid_at=collected,
                 )
             )
         if upcoming is not None:
