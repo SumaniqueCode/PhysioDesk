@@ -133,6 +133,11 @@ def _bearer(user: User) -> dict[str, str]:
     return {"Authorization": f"Bearer {create_access_token(str(user.id), user.role.value)}"}
 
 
+@pytest.fixture
+def test_password() -> str:
+    return TEST_PASSWORD
+
+
 @pytest_asyncio.fixture
 async def make_user(db):
     async def _factory(email: str = "user@test.com", role: UserRole = UserRole.staff) -> User:

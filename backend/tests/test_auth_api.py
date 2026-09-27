@@ -1,12 +1,11 @@
 from app.models.user import UserRole
-from tests.conftest import TEST_PASSWORD
 
 
-async def test_login_returns_token_and_sets_refresh_cookie(client, make_user):
+async def test_login_returns_token_and_sets_refresh_cookie(client, make_user, test_password):
     await make_user("me@test.com", UserRole.admin)
 
     res = await client.post(
-        "/api/v1/auth/login", json={"email": "me@test.com", "password": TEST_PASSWORD}
+        "/api/v1/auth/login", json={"email": "me@test.com", "password": test_password}
     )
 
     assert res.status_code == 200
