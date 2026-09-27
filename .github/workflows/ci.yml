@@ -50,9 +50,9 @@ jobs:
 
       - name: Run tests
         env:
-          # Integration tests run against the postgres service database above.
+          # Integration tests run against the postgres service database above;
+          # conftest supplies a default JWT_SECRET so none is needed here.
           TEST_DATABASE_URL: postgresql+asyncpg://physiodesk:physiodesk@localhost:5432/physiodesk_test
-          JWT_SECRET: test-jwt-secret-that-is-at-least-32-characters-long
         run: pytest -q
 
   frontend:
