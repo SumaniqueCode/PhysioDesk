@@ -1,17 +1,26 @@
+from __future__ import annotations
+
 import datetime as dt
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError
 from app.models.therapist import Therapist, TherapistScheduleOverride
+from app.repositories.appointment import AppointmentRepository
 from app.repositories.therapist import TherapistRepository
-from app.schemas.therapist import ScheduleOverrideCreate, TherapistCreate, TherapistUpdate
+from app.schemas.therapist import (
+    ScheduleOverrideCreate,
+    TherapistCreate,
+    TherapistListItem,
+    TherapistUpdate,
+)
 
 
 class TherapistService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.repo = TherapistRepository(session)
+        self.appointments = AppointmentRepository(session)
 
     async def list(
         self, *, search: str | None, is_active: bool | None, page: int, page_size: int
@@ -20,6 +29,23 @@ class TherapistService:
         return await self.repo.list(
             search=search, is_active=is_active, offset=offset, limit=page_size
         )
+
+    async def roster(
+        self, *, search: str | None, is_active: bool | None, page: int, page_size: int
+    ) -> tuple[list[TherapistListItem], int]:
+        therapists, total = await self.list(
+            search=search, is_active=is_active, page=page, page_size=page_size
+        )
+        # UTC-anchored "today" to match the dashboard's revenue/appointment stats.
+        today = dt.datetime.now(dt.UTC).date()
+        counts = await self.appointments.seen_today_counts([t.id for t in therapists], today)
+        items = [
+            TherapistListItem.model_validate(t).model_copy(
+                update={"patients_seen_today": counts.get(t.id, 0)}
+            )
+            for t in therapists
+        ]
+        return items, total
 
     async def get(self, therapist_id: int) -> Therapist:
         therapist = await self.repo.get_with_overrides(therapist_id)

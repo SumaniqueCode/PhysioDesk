@@ -99,5 +99,10 @@ class TherapistRead(BaseModel):
         return round(_window_hours(self.start_time, self.end_time) * len(self.working_days), 1)
 
 
+class TherapistListItem(TherapistRead):
+    # Completed visits for this therapist today; powers the roster's "seen today".
+    patients_seen_today: int = 0
+
+
 class TherapistDetail(TherapistRead):
     schedule_overrides: list[ScheduleOverrideRead] = []

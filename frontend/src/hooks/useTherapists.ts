@@ -38,6 +38,8 @@ function buildQuery(params: TherapistListParams): string {
   if (params.is_active !== null && params.is_active !== undefined) {
     qs.set("is_active", String(params.is_active));
   }
+  // The roster shows "patients seen today"; dropdown fetches use fetchAllPages and skip it.
+  qs.set("seen_today", "true");
   qs.set("page", String(params.page));
   qs.set("page_size", String(params.page_size));
   return qs.toString();

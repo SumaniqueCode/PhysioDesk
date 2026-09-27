@@ -11,7 +11,7 @@ from app.schemas.therapist import (
     ScheduleOverrideRead,
     TherapistCreate,
     TherapistDetail,
-    TherapistRead,
+    TherapistListItem,
     TherapistUpdate,
 )
 from app.services.therapist import TherapistService
@@ -22,19 +22,27 @@ router = APIRouter(prefix="/therapists", tags=["therapists"])
 AdminRequired = Depends(require_roles(UserRole.admin))
 
 
-@router.get("", response_model=Page[TherapistRead])
+@router.get("", response_model=Page[TherapistListItem])
 async def list_therapists(
     _: CurrentUser,
     session: SessionDep,
     search: Annotated[str | None, Query(max_length=120)] = None,
     # Default to active-only so soft-deleted therapists drop out of the roster and dropdowns.
     is_active: bool | None = True,
+    # Opt-in "patients seen today" count; dropdown fetches skip it and get 0.
+    seen_today: bool = False,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
-) -> Page[TherapistRead]:
-    items, total = await TherapistService(session).list(
-        search=search, is_active=is_active, page=page, page_size=page_size
-    )
+) -> Page[TherapistListItem]:
+    service = TherapistService(session)
+    if seen_today:
+        items, total = await service.roster(
+            search=search, is_active=is_active, page=page, page_size=page_size
+        )
+    else:
+        items, total = await service.list(
+            search=search, is_active=is_active, page=page, page_size=page_size
+        )
     return Page(items=items, total=total, page=page, page_size=page_size)
 
 

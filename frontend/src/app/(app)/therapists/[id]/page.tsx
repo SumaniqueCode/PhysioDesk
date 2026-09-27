@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { CalendarOff, Clock, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, CalendarOff, Clock, Pencil, Plus, Trash2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import {
   Breadcrumb,
@@ -13,15 +13,23 @@ import {
   CardTitle,
   ConfirmDialog,
   EmptyState,
+  HistoryCard,
   IconButton,
   Skeleton,
   StatusPill,
+  Table,
+  Td,
+  Th,
+  Tr,
 } from "@/components/ui";
 import { ScheduleOverrideModal } from "@/components/therapists/ScheduleOverrideModal";
 import { TherapistFormModal } from "@/components/therapists/TherapistFormModal";
+import { useTherapistAppointments } from "@/hooks/useAppointments";
 import { useDeleteOverride, useTherapist } from "@/hooks/useTherapists";
+import { appointmentStatusLabel, appointmentStatusTone, todayISO } from "@/lib/appointment";
 import { formatDate, formatTime, formatWorkingDays } from "@/lib/schedule";
 import { useAuthStore } from "@/stores/authStore";
+import type { Appointment } from "@/types/appointment";
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -170,9 +178,7 @@ export default function TherapistDetailPage() {
           </CardBody>
         </Card>
 
-        <p className="text-sm text-muted">
-          Patients seen today and upcoming appointments appear once scheduling is available.
-        </p>
+        <TherapistAppointments therapistId={id} />
       </div>
 
       <TherapistFormModal open={showEdit} onClose={() => setShowEdit(false)} therapist={therapist} />
@@ -195,5 +201,87 @@ export default function TherapistDetailPage() {
         onClose={() => setDeletingDate(null)}
       />
     </>
+  );
+}
+
+function TherapistAppointments({ therapistId }: { therapistId: number }) {
+  const today = todayISO();
+  const { data, isLoading, isError } = useTherapistAppointments(therapistId, today);
+
+  // Split the "today onward" fetch into today's roster and future bookings still to come.
+  const todays = (data ?? [])
+    .filter((a) => a.date === today)
+    .sort((a, b) => a.start_time.localeCompare(b.start_time));
+  const upcoming = (data ?? [])
+    .filter((a) => a.date > today && a.status === "scheduled")
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time));
+
+  const icon = <CalendarDays className="size-8" />;
+
+  return (
+    <>
+      <HistoryCard
+        title="Today's appointments"
+        meta={`${todays.length} ${todays.length === 1 ? "patient" : "patients"}`}
+        icon={icon}
+        skeletonRows={2}
+        isLoading={isLoading}
+        isError={isError}
+        isEmpty={todays.length === 0}
+        errorTitle="Couldn't load appointments"
+        emptyTitle="No appointments today"
+        emptyDescription="Bookings scheduled for today will appear here."
+      >
+        <AppointmentTable rows={todays} showDate={false} />
+      </HistoryCard>
+
+      <HistoryCard
+        title="Upcoming appointments"
+        meta={`${upcoming.length} ${upcoming.length === 1 ? "booking" : "bookings"}`}
+        icon={icon}
+        skeletonRows={2}
+        isLoading={isLoading}
+        isEmpty={upcoming.length === 0}
+        emptyTitle="No upcoming appointments"
+        emptyDescription="Future bookings for this therapist will appear here."
+      >
+        <AppointmentTable rows={upcoming} showDate />
+      </HistoryCard>
+    </>
+  );
+}
+
+function AppointmentTable({ rows, showDate }: { rows: Appointment[]; showDate: boolean }) {
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <thead>
+          <tr>
+            {showDate && <Th>Date</Th>}
+            <Th>Time</Th>
+            <Th>Patient</Th>
+            <Th>Status</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((a) => (
+            <Tr key={a.id}>
+              {showDate && (
+                <Td className="whitespace-nowrap text-foreground">{formatDate(a.date)}</Td>
+              )}
+              <Td className="whitespace-nowrap text-muted">
+                {formatTime(a.start_time)} – {formatTime(a.end_time)}
+              </Td>
+              <Td className="text-foreground">{a.patient.full_name}</Td>
+              <Td>
+                <StatusPill tone={appointmentStatusTone(a.status)}>
+                  {appointmentStatusLabel(a.status)}
+                </StatusPill>
+              </Td>
+            </Tr>
+          ))}
+        </tbody>
+      </Table>
+    </div>
   );
 }
