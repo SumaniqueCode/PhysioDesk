@@ -9,6 +9,8 @@ export interface Therapist {
   slot_duration_minutes: number;
   is_active: boolean;
   weekly_hours: number;
+  // Present on roster list responses; absent on the detail payload.
+  patients_seen_today?: number;
 }
 
 export interface ScheduleOverride {

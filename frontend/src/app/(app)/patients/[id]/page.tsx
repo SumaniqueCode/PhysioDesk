@@ -14,8 +14,8 @@ import {
   CardTitle,
   ConfirmDialog,
   EmptyState,
+  HistoryCard,
   Skeleton,
-  SkeletonTable,
   StatusPill,
   Table,
   Td,
@@ -178,54 +178,27 @@ export default function PatientDetailPage() {
   );
 }
 
-function HistoryCard({
-  title,
-  count,
-  children,
-}: {
-  title: string;
-  count?: number;
-  children: ReactNode;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        {count != null && (
-          <span className="text-sm text-muted">
-            {count} {count === 1 ? "record" : "records"}
-          </span>
-        )}
-      </CardHeader>
-      <CardBody className="p-0">{children}</CardBody>
-    </Card>
-  );
+function historyMeta(count?: number): string | undefined {
+  if (count == null) return undefined;
+  return `${count} ${count === 1 ? "record" : "records"}`;
 }
 
 function SessionHistory({ patientId }: { patientId: number }) {
   const { data, isLoading, isError } = usePatientAppointments(patientId);
 
   return (
-    <HistoryCard title="Session history" count={data?.length}>
-      {isLoading ? (
-        <div className="p-5">
-          <SkeletonTable rows={3} />
-        </div>
-      ) : isError ? (
-        <EmptyState
-          className="border-0"
-          icon={<CalendarDays className="size-8" />}
-          title="Couldn't load sessions"
-          description="Please refresh the page and try again."
-        />
-      ) : !data || data.length === 0 ? (
-        <EmptyState
-          className="border-0"
-          icon={<CalendarDays className="size-8" />}
-          title="No sessions yet"
-          description="Appointments booked for this patient will show up here."
-        />
-      ) : (
+    <HistoryCard
+      title="Session history"
+      meta={historyMeta(data?.length)}
+      icon={<CalendarDays className="size-8" />}
+      isLoading={isLoading}
+      isError={isError}
+      isEmpty={!data || data.length === 0}
+      errorTitle="Couldn't load sessions"
+      emptyTitle="No sessions yet"
+      emptyDescription="Appointments booked for this patient will show up here."
+    >
+      {data && data.length > 0 && (
         <div className="overflow-x-auto">
           <Table>
             <thead>
@@ -265,26 +238,18 @@ function BillingHistory({ patientId }: { patientId: number }) {
   const { data, isLoading, isError } = usePatientInvoices(patientId);
 
   return (
-    <HistoryCard title="Billing history" count={data?.length}>
-      {isLoading ? (
-        <div className="p-5">
-          <SkeletonTable rows={3} />
-        </div>
-      ) : isError ? (
-        <EmptyState
-          className="border-0"
-          icon={<Receipt className="size-8" />}
-          title="Couldn't load invoices"
-          description="Please refresh the page and try again."
-        />
-      ) : !data || data.length === 0 ? (
-        <EmptyState
-          className="border-0"
-          icon={<Receipt className="size-8" />}
-          title="No invoices yet"
-          description="Invoices raised for this patient will show up here."
-        />
-      ) : (
+    <HistoryCard
+      title="Billing history"
+      meta={historyMeta(data?.length)}
+      icon={<Receipt className="size-8" />}
+      isLoading={isLoading}
+      isError={isError}
+      isEmpty={!data || data.length === 0}
+      errorTitle="Couldn't load invoices"
+      emptyTitle="No invoices yet"
+      emptyDescription="Invoices raised for this patient will show up here."
+    >
+      {data && data.length > 0 && (
         <div className="overflow-x-auto">
           <Table>
             <thead>

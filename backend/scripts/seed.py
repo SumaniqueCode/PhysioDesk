@@ -46,7 +46,7 @@ SEED_THERAPISTS = [
         "slot_duration_minutes": 45,
     },
     {
-        "full_name": "Dr. Priya Nair",
+        "full_name": "Dr. Michelle Voss",
         "specialty": "Neurological Rehabilitation",
         "working_days": [1, 3, 5],
         "start_time": dt.time(8, 30),

@@ -97,6 +97,21 @@ class AppointmentRepository:
         result = await self.session.execute(select(Appointment).where(*conditions))
         return result.scalar_one_or_none()
 
+    async def seen_today_counts(self, therapist_ids: list[int], day: dt.date) -> dict[int, int]:
+        # Distinct patients seen per therapist for one date, in a single grouped query (no N+1).
+        if not therapist_ids:
+            return {}
+        result = await self.session.execute(
+            select(Appointment.therapist_id, func.count(func.distinct(Appointment.patient_id)))
+            .where(
+                Appointment.therapist_id.in_(therapist_ids),
+                Appointment.date == day,
+                Appointment.status == AppointmentStatus.completed,
+            )
+            .group_by(Appointment.therapist_id)
+        )
+        return {therapist_id: count for therapist_id, count in result.all()}
+
     async def booked_starts(self, therapist_id: int, target_date: dt.date) -> set[dt.time]:
         # Just the taken slot starts for one therapist/date — no rows or relations to hydrate.
         result = await self.session.execute(

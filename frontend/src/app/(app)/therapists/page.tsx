@@ -165,6 +165,7 @@ export default function TherapistsPage() {
                     <Th>Working days</Th>
                     <Th>Hours</Th>
                     <Th className="text-right">Weekly</Th>
+                    <Th className="text-right">Seen today</Th>
                     <Th>Status</Th>
                     <Th className="text-right">Actions</Th>
                   </tr>
@@ -179,6 +180,9 @@ export default function TherapistsPage() {
                         {formatTime(t.start_time)} – {formatTime(t.end_time)}
                       </Td>
                       <Td className="text-right font-mono text-foreground">{t.weekly_hours}h</Td>
+                      <Td className="text-right font-mono text-foreground">
+                        {t.patients_seen_today ?? 0}
+                      </Td>
                       <Td>
                         <StatusPill tone={t.is_active ? "success" : "neutral"}>
                           {t.is_active ? "Active" : "Inactive"}

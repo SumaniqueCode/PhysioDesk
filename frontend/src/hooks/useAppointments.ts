@@ -76,6 +76,18 @@ export function usePatientAppointments(patientId: number) {
   });
 }
 
+// A therapist's appointments from a given date onward, for the roster detail page.
+export function useTherapistAppointments(therapistId: number, dateFrom: string) {
+  return useQuery({
+    queryKey: ["appointments", "therapist", therapistId, dateFrom],
+    queryFn: () =>
+      fetchAllPages<Appointment>(
+        `/appointments?therapist_id=${therapistId}&date_from=${dateFrom}`,
+      ),
+    enabled: Number.isFinite(therapistId),
+  });
+}
+
 export function useCreateAppointment() {
   const qc = useQueryClient();
   return useMutation({
