@@ -1,11 +1,13 @@
 import asyncio
 import datetime as dt
+from decimal import Decimal
 
 from sqlalchemy import select
 
 from app.core.security import hash_password
 from app.db.session import AsyncSessionLocal
 from app.models.appointment import Appointment, AppointmentStatus, PaymentMethod
+from app.models.invoice import Invoice, InvoiceStatus
 from app.models.patient import Patient, PatientStatus
 from app.models.therapist import Therapist
 from app.models.user import User, UserRole
@@ -109,6 +111,14 @@ SEED_PATIENTS = [
 
 _PAYMENT_CYCLE = [PaymentMethod.card, PaymentMethod.cash, PaymentMethod.insurance]
 
+# (service, amount, discount) rotated across patients for varied invoices.
+_SERVICES = [
+    ("Initial assessment", Decimal("120.00"), Decimal("0.00")),
+    ("Rehabilitation session", Decimal("80.00"), Decimal("10.00")),
+    ("Manual therapy session", Decimal("95.00"), Decimal("0.00")),
+    ("Follow-up review", Decimal("60.00"), Decimal("15.00")),
+]
+
 
 def _nearest_working_date(base: dt.date, working_days: list[int], direction: int) -> dt.date:
     # Walk day-by-day from base until we hit a weekday the therapist works.
@@ -168,6 +178,59 @@ async def _seed_appointments(session) -> int:
     return created
 
 
+async def _seed_invoices(session) -> None:
+    for i, data in enumerate(SEED_PATIENTS):
+        patient = await session.scalar(
+            select(Patient).where(Patient.full_name == data["full_name"])
+        )
+        if patient is None:
+            continue
+        exists = await session.scalar(select(Invoice).where(Invoice.patient_id == patient.id))
+        if exists:
+            continue
+        appts = (
+            await session.scalars(
+                select(Appointment)
+                .where(Appointment.patient_id == patient.id)
+                .order_by(Appointment.date)
+            )
+        ).all()
+        completed = next((a for a in appts if a.status == AppointmentStatus.completed), None)
+        upcoming = next((a for a in appts if a.status == AppointmentStatus.scheduled), None)
+        method = _PAYMENT_CYCLE[i % len(_PAYMENT_CYCLE)]
+
+        # A settled invoice for the past visit and an outstanding one for the upcoming visit.
+        if completed is not None:
+            service, amount, discount = _SERVICES[i % len(_SERVICES)]
+            session.add(
+                Invoice(
+                    patient_id=patient.id,
+                    appointment_id=completed.id,
+                    service=service,
+                    amount=amount,
+                    discount=discount,
+                    status=InvoiceStatus.paid,
+                    payment_method=method,
+                    issued_date=completed.date,
+                    paid_at=dt.datetime.combine(completed.date, dt.time(12, 0), dt.UTC),
+                )
+            )
+        if upcoming is not None:
+            service, amount, discount = _SERVICES[(i + 1) % len(_SERVICES)]
+            session.add(
+                Invoice(
+                    patient_id=patient.id,
+                    appointment_id=upcoming.id,
+                    service=service,
+                    amount=amount,
+                    discount=discount,
+                    status=InvoiceStatus.due,
+                    payment_method=method,
+                    issued_date=upcoming.date,
+                )
+            )
+
+
 async def seed() -> None:
     async with AsyncSessionLocal() as session:
         for data in SEED_USERS:
@@ -212,6 +275,10 @@ async def seed() -> None:
         # Flush so patients get ids before their appointments reference them.
         await session.flush()
         await _seed_appointments(session)
+
+        # Flush so appointments get ids before their invoices reference them.
+        await session.flush()
+        await _seed_invoices(session)
 
         await session.commit()
     # Nothing about the seeded records is logged; the README lists the test logins.
