@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.exceptions import NotFoundError
 from app.models.therapist import Therapist, TherapistScheduleOverride
@@ -64,9 +65,10 @@ class TherapistService:
         therapist = Therapist(**payload.model_dump())
         self.repo.add(therapist)
         await self.session.flush()
-        # A new therapist has no overrides; set the collection so serializing
-        # TherapistDetail doesn't trigger an async lazy-load.
-        therapist.schedule_overrides = []
+        # Mark the (empty) overrides collection as already loaded, without the lazy SELECT a
+        # plain assignment would emit — that IO has no greenlet on the async engine and would
+        # otherwise fail when TherapistDetail is serialized after the request.
+        set_committed_value(therapist, "schedule_overrides", [])
         return therapist
 
     async def update(self, therapist_id: int, payload: TherapistUpdate) -> Therapist:
