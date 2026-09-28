@@ -2,7 +2,7 @@ import datetime as dt
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field, model_validator
 
-from app.models.patient import PatientStatus
+from app.models.patient import PatientGender, PatientStatus
 
 
 def _reject_future_dob(dob: dt.date | None) -> None:
@@ -15,7 +15,9 @@ class PatientBase(BaseModel):
     email: EmailStr | None = None
     phone: str | None = Field(default=None, max_length=30)
     date_of_birth: dt.date | None = None
+    gender: PatientGender | None = None
     address: str | None = Field(default=None, max_length=255)
+    package: str | None = Field(default=None, max_length=120)
     medical_notes: str | None = None
     status: PatientStatus = PatientStatus.active
     assigned_therapist_id: int | None = None
@@ -35,7 +37,9 @@ class PatientUpdate(BaseModel):
     email: EmailStr | None = None
     phone: str | None = Field(default=None, max_length=30)
     date_of_birth: dt.date | None = None
+    gender: PatientGender | None = None
     address: str | None = Field(default=None, max_length=255)
+    package: str | None = Field(default=None, max_length=120)
     medical_notes: str | None = None
     status: PatientStatus | None = None
     assigned_therapist_id: int | None = None
@@ -65,7 +69,9 @@ class PatientRead(BaseModel):
     email: EmailStr | None
     phone: str | None
     date_of_birth: dt.date | None
+    gender: PatientGender | None
     address: str | None
+    package: str | None
     medical_notes: str | None
     status: PatientStatus
     assigned_therapist_id: int | None

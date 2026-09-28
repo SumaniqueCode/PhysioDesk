@@ -15,6 +15,12 @@ class PatientStatus(enum.StrEnum):
     on_hold = "on_hold"
 
 
+class PatientGender(enum.StrEnum):
+    male = "male"
+    female = "female"
+    other = "other"
+
+
 class Patient(BaseModel):
     __tablename__ = "patients"
 
@@ -22,7 +28,12 @@ class Patient(BaseModel):
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     date_of_birth: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    gender: Mapped[PatientGender | None] = mapped_column(
+        SAEnum(PatientGender, name="patient_gender"), nullable=True
+    )
     address: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Treatment package the patient is enrolled in (e.g. a 12-session rehab plan).
+    package: Mapped[str | None] = mapped_column(String(120), nullable=True)
     # Free-text intake notes (conditions, referral reason); shown on the patient record.
     medical_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[PatientStatus] = mapped_column(
