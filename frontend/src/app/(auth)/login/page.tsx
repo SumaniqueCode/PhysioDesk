@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { useLogin } from "@/hooks/useAuth";
 import { useAuthStore } from "@/stores/authStore";
@@ -22,6 +22,7 @@ export default function LoginPage() {
   const router = useRouter();
   const status = useAuthStore((s) => s.status);
   const login = useLogin();
+  const [showPassword, setShowPassword] = useState(false);
   const {
     register,
     handleSubmit,
@@ -54,10 +55,21 @@ export default function LoginPage() {
           />
           <Input
             label="Password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             placeholder="••••••••"
             icon={<Lock className="size-4" />}
+            trailing={
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="flex items-center rounded transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
+              >
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            }
             error={errors.password?.message}
             {...register("password")}
           />
@@ -66,9 +78,11 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-muted">
-          Demo — admin@physiodesk.com / Admin@123
-        </p>
+        <div className="mt-6 space-y-1 text-center text-xs text-muted">
+          <p className="font-medium text-foreground">Demo accounts</p>
+          <p>Admin — admin@physiodesk.com / Admin@123</p>
+          <p>Staff — staff@physiodesk.com / Staff@123</p>
+        </div>
         <Link
           href="/design-system"
           className="mt-3 block text-center text-xs font-medium text-primary hover:underline"
