@@ -5,10 +5,11 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   icon?: ReactNode;
+  trailing?: ReactNode;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, icon, className, id, name, ...props },
+  { label, error, icon, trailing, className, id, name, ...props },
   ref,
 ) {
   const inputId = id ?? name;
@@ -36,6 +37,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           aria-invalid={!!error}
           {...props}
         />
+        {trailing && <span className="text-muted">{trailing}</span>}
       </div>
       {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}
     </div>

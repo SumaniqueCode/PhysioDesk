@@ -1,5 +1,6 @@
 // Dates are "YYYY-MM-DD"; nullable fields come back as null, not omitted.
 export type PatientStatus = "active" | "completed" | "on_hold";
+export type PatientGender = "male" | "female" | "other";
 
 export interface AssignedTherapist {
   id: number;
@@ -14,7 +15,9 @@ export interface Patient {
   email: string | null;
   phone: string | null;
   date_of_birth: string | null;
+  gender: PatientGender | null;
   address: string | null;
+  package: string | null;
   medical_notes: string | null;
   status: PatientStatus;
   assigned_therapist_id: number | null;
@@ -28,7 +31,9 @@ export interface PatientPayload {
   email: string | null;
   phone: string | null;
   date_of_birth: string | null;
+  gender: PatientGender | null;
   address: string | null;
+  package: string | null;
   medical_notes: string | null;
   status: PatientStatus;
   assigned_therapist_id: number | null;

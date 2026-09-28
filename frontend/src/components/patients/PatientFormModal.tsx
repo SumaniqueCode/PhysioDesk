@@ -5,10 +5,10 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button, Input, Modal, Select, Textarea, type SelectOption } from "@/components/ui";
-import { PATIENT_STATUSES } from "@/lib/patient";
+import { PATIENT_GENDERS, PATIENT_PACKAGES, PATIENT_STATUSES } from "@/lib/patient";
 import { useActiveTherapists } from "@/hooks/useTherapists";
 import { useCreatePatient, useUpdatePatient } from "@/hooks/usePatients";
-import type { Patient, PatientPayload } from "@/types/patient";
+import type { Patient, PatientGender, PatientPayload } from "@/types/patient";
 
 const UNASSIGNED = "";
 
@@ -21,7 +21,9 @@ const schema = z.object({
     .refine((v) => !v || v <= new Date().toISOString().slice(0, 10), {
       message: "Date of birth can't be in the future",
     }),
+  gender: z.enum(["", "male", "female", "other"]),
   address: z.string().trim().max(255),
+  package: z.string().max(120),
   status: z.enum(["active", "on_hold", "completed"]),
   assigned_therapist_id: z.string(),
   medical_notes: z.string().max(2000),
@@ -35,7 +37,9 @@ function defaults(patient?: Patient): FormValues {
     email: patient?.email ?? "",
     phone: patient?.phone ?? "",
     date_of_birth: patient?.date_of_birth ?? "",
+    gender: patient?.gender ?? "",
     address: patient?.address ?? "",
+    package: patient?.package ?? "",
     status: patient?.status ?? "active",
     assigned_therapist_id: patient?.assigned_therapist_id
       ? String(patient.assigned_therapist_id)
@@ -52,7 +56,9 @@ function toPayload(v: FormValues): PatientPayload {
     email: clean(v.email),
     phone: clean(v.phone),
     date_of_birth: v.date_of_birth || null,
+    gender: v.gender ? (v.gender as PatientGender) : null,
     address: clean(v.address),
+    package: v.package || null,
     medical_notes: clean(v.medical_notes),
     status: v.status,
     assigned_therapist_id: v.assigned_therapist_id ? Number(v.assigned_therapist_id) : null,
@@ -126,7 +132,40 @@ export function PatientFormModal({
 
         <div className="flex flex-col gap-4 sm:flex-row">
           <Input label="Date of birth" type="date" error={errors.date_of_birth?.message} {...register("date_of_birth")} />
+          <Controller
+            control={control}
+            name="gender"
+            render={({ field }) => (
+              <Select
+                label="Gender"
+                options={[
+                  { value: "", label: "Unspecified" },
+                  ...PATIENT_GENDERS.map((g) => ({ value: g.value, label: g.label })),
+                ]}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </div>
+
+        <div className="flex flex-col gap-4 sm:flex-row">
           <Input label="Address" placeholder="12 Rosewood Ave" error={errors.address?.message} {...register("address")} />
+          <Controller
+            control={control}
+            name="package"
+            render={({ field }) => (
+              <Select
+                label="Package"
+                options={[
+                  { value: "", label: "No package" },
+                  ...PATIENT_PACKAGES.map((p) => ({ value: p, label: p })),
+                ]}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
         </div>
 
         <div className="flex flex-col gap-4 sm:flex-row">

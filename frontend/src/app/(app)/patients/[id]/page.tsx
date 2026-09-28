@@ -26,7 +26,7 @@ import { PatientFormModal } from "@/components/patients/PatientFormModal";
 import { usePatient, useDeletePatient } from "@/hooks/usePatients";
 import { usePatientAppointments } from "@/hooks/useAppointments";
 import { usePatientInvoices } from "@/hooks/useInvoices";
-import { statusLabel, statusTone } from "@/lib/patient";
+import { genderLabel, statusLabel, statusTone } from "@/lib/patient";
 import { appointmentStatusLabel, appointmentStatusTone } from "@/lib/appointment";
 import { formatCurrency, invoiceStatusLabel, invoiceStatusTone } from "@/lib/invoice";
 import { formatDate, formatTime } from "@/lib/schedule";
@@ -116,6 +116,8 @@ export default function PatientDetailPage() {
               <Field label="Email" value={patient.email ?? "—"} />
               <Field label="Phone" value={patient.phone ?? "—"} />
               <Field label="Date of birth" value={dob} />
+              <Field label="Gender" value={genderLabel(patient.gender)} />
+              <Field label="Package" value={patient.package ?? "—"} />
               <Field label="Address" value={patient.address ?? "—"} />
               <Field
                 label="Assigned therapist"

@@ -8,7 +8,7 @@ from app.core.security import hash_password
 from app.db.session import AsyncSessionLocal
 from app.models.appointment import Appointment, AppointmentStatus, PaymentMethod
 from app.models.invoice import Invoice, InvoiceStatus
-from app.models.patient import Patient, PatientStatus
+from app.models.patient import Patient, PatientGender, PatientStatus
 from app.models.therapist import Therapist
 from app.models.user import User, UserRole
 
@@ -71,7 +71,9 @@ SEED_PATIENTS = [
         "email": "ella.bennett@example.com",
         "phone": "555-0142",
         "date_of_birth": dt.date(1991, 4, 18),
+        "gender": PatientGender.female,
         "address": "12 Rosewood Ave, Springfield",
+        "package": "12-session rehab",
         "medical_notes": "Post-ACL reconstruction; building quad strength.",
         "status": PatientStatus.active,
         "therapist_name": "Dr. Anita Rao",
@@ -81,7 +83,9 @@ SEED_PATIENTS = [
         "email": "owen.carter@example.com",
         "phone": "555-0177",
         "date_of_birth": dt.date(1978, 11, 2),
+        "gender": PatientGender.male,
         "address": "8 Maple Street, Springfield",
+        "package": "Ongoing management",
         "medical_notes": "Chronic lower-back pain; postural correction plan.",
         "status": PatientStatus.active,
         "therapist_name": "Dr. Marcus Lim",
@@ -91,7 +95,9 @@ SEED_PATIENTS = [
         "email": "sofia.alvarez@example.com",
         "phone": "555-0193",
         "date_of_birth": dt.date(2015, 6, 27),
+        "gender": PatientGender.female,
         "address": "45 Birch Lane, Springfield",
+        "package": "6-session rehab",
         "medical_notes": "Pediatric gait training; reviews fortnightly.",
         "status": PatientStatus.on_hold,
         "therapist_name": "Dr. Samuel Okafor",
@@ -101,10 +107,72 @@ SEED_PATIENTS = [
         "email": None,
         "phone": "555-0210",
         "date_of_birth": dt.date(1963, 1, 9),
+        "gender": PatientGender.male,
         "address": "3 Cedar Court, Springfield",
+        "package": "Post-surgery care",
         "medical_notes": "Stroke rehabilitation; discharged after goals met.",
         "status": PatientStatus.completed,
-        "therapist_name": "Dr. Priya Nair",
+        "therapist_name": "Dr. Michelle Voss",
+    },
+    {
+        "full_name": "Liam O'Connor",
+        "email": "liam.oconnor@example.com",
+        "phone": "555-0224",
+        "date_of_birth": dt.date(1996, 9, 5),
+        "gender": PatientGender.male,
+        "address": "77 Elmwood Drive, Springfield",
+        "package": "Sports recovery",
+        "medical_notes": "Grade II hamstring strain; return-to-run programme.",
+        "status": PatientStatus.active,
+        "therapist_name": "Dr. Anita Rao",
+    },
+    {
+        "full_name": "Mia Thompson",
+        "email": "mia.thompson@example.com",
+        "phone": "555-0238",
+        "date_of_birth": dt.date(1985, 2, 14),
+        "gender": PatientGender.female,
+        "address": "19 Willow Close, Springfield",
+        "package": "Single consultation",
+        "medical_notes": "Shoulder impingement; assessing rotator cuff.",
+        "status": PatientStatus.active,
+        "therapist_name": "Dr. Marcus Lim",
+    },
+    {
+        "full_name": "Noah Kim",
+        "email": "noah.kim@example.com",
+        "phone": "555-0251",
+        "date_of_birth": dt.date(1959, 7, 30),
+        "gender": PatientGender.male,
+        "address": "5 Hazel Grove, Springfield",
+        "package": "12-session rehab",
+        "medical_notes": "Post-stroke balance retraining; slow but steady.",
+        "status": PatientStatus.on_hold,
+        "therapist_name": "Dr. Michelle Voss",
+    },
+    {
+        "full_name": "Ava Rossi",
+        "email": "ava.rossi@example.com",
+        "phone": "555-0269",
+        "date_of_birth": dt.date(1972, 12, 11),
+        "gender": PatientGender.female,
+        "address": "31 Poplar Way, Springfield",
+        "package": "6-session rehab",
+        "medical_notes": "Knee osteoarthritis; strengthening and load management.",
+        "status": PatientStatus.active,
+        "therapist_name": "Dr. Marcus Lim",
+    },
+    {
+        "full_name": "Ethan Walsh",
+        "email": "ethan.walsh@example.com",
+        "phone": "555-0277",
+        "date_of_birth": dt.date(1989, 3, 22),
+        "gender": PatientGender.male,
+        "address": "62 Sycamore Street, Springfield",
+        "package": "Ongoing management",
+        "medical_notes": "Lateral epicondylitis; discharged after full recovery.",
+        "status": PatientStatus.completed,
+        "therapist_name": "Dr. Anita Rao",
     },
 ]
 
@@ -134,9 +202,17 @@ def _slot_end(start: dt.time, minutes: int) -> dt.time:
     return (dt.datetime.combine(dt.date.min, start) + dt.timedelta(minutes=minutes)).time()
 
 
+def _slot_start(base: dt.time, minutes: int, index: int) -> dt.time:
+    # The index-th slot after the therapist's start time.
+    return (dt.datetime.combine(dt.date.min, base) + dt.timedelta(minutes=minutes * index)).time()
+
+
 async def _seed_appointments(session) -> int:
     today = dt.date.today()
     created = 0
+    # Next free slot index per (therapist, date) so patients sharing a therapist
+    # land on different slots instead of colliding on the same start time.
+    used: dict[tuple[int, dt.date], int] = {}
     for i, data in enumerate(SEED_PATIENTS):
         patient = await session.scalar(
             select(Patient).where(Patient.full_name == data["full_name"])
@@ -146,22 +222,22 @@ async def _seed_appointments(session) -> int:
         )
         if patient is None or therapist is None:
             continue
-        # One completed visit in the past and one upcoming booking per patient.
+        # A past completed visit and an upcoming booking for everyone, plus a visit
+        # earlier today when the therapist works today so the dashboard has live figures.
         plan = [
             (_nearest_working_date(today, therapist.working_days, -1), AppointmentStatus.completed),
             (_nearest_working_date(today, therapist.working_days, 1), AppointmentStatus.scheduled),
         ]
+        if today.weekday() in therapist.working_days:
+            plan.insert(0, (today, AppointmentStatus.completed))
+
         for date, status in plan:
-            start = therapist.start_time
-            exists = await session.scalar(
-                select(Appointment).where(
-                    Appointment.therapist_id == therapist.id,
-                    Appointment.date == date,
-                    Appointment.start_time == start,
-                )
-            )
-            if exists:
+            index = used.get((therapist.id, date), 0)
+            start = _slot_start(therapist.start_time, therapist.slot_duration_minutes, index)
+            # Skip if the therapist's day is already full.
+            if start >= therapist.end_time:
                 continue
+            used[(therapist.id, date)] = index + 1
             session.add(
                 Appointment(
                     patient_id=patient.id,

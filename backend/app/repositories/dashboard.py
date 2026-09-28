@@ -5,12 +5,13 @@ from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.invoice import Invoice, InvoiceStatus
-from app.models.patient import Patient, PatientStatus
+from app.models.patient import Patient
 
-# Net payable per invoice; reused by the revenue and outstanding aggregates below.
+# Net payable per invoice; backs the revenue aggregate below.
 _NET = Invoice.amount - Invoice.discount
 
 
@@ -20,27 +21,17 @@ class DashboardRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def active_patient_count(self) -> int:
+    async def patients_seen_today(self, day: dt.date) -> int:
+        # Distinct patients with a completed appointment on the day — not raw visit count.
         return (
             await self.session.scalar(
-                select(func.count())
-                .select_from(Patient)
-                .where(Patient.status == PatientStatus.active)
+                select(func.count(func.distinct(Appointment.patient_id))).where(
+                    Appointment.date == day,
+                    Appointment.status == AppointmentStatus.completed,
+                )
             )
             or 0
         )
-
-    async def appointment_counts(self, day: dt.date) -> tuple[int, int]:
-        # Total booked today and how many of those are already completed.
-        total = await self.session.scalar(
-            select(func.count()).select_from(Appointment).where(Appointment.date == day)
-        )
-        completed = await self.session.scalar(
-            select(func.count())
-            .select_from(Appointment)
-            .where(Appointment.date == day, Appointment.status == AppointmentStatus.completed)
-        )
-        return total or 0, completed or 0
 
     async def revenue_collected(self, start: dt.datetime, end: dt.datetime) -> Decimal:
         # Payments whose paid_at stamp falls in the [start, end) window.
@@ -53,12 +44,11 @@ class DashboardRepository:
         )
         return Decimal(value or 0)
 
-    async def outstanding(self) -> tuple[Decimal, int]:
-        row = (
-            await self.session.execute(
-                select(func.coalesce(func.sum(_NET), 0), func.count()).where(
-                    Invoice.status == InvoiceStatus.due
-                )
-            )
-        ).one()
-        return Decimal(row[0] or 0), row[1]
+    async def recent_patients(self, limit: int) -> list[Patient]:
+        result = await self.session.execute(
+            select(Patient)
+            .options(selectinload(Patient.assigned_therapist))
+            .order_by(Patient.created_at.desc(), Patient.id.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())

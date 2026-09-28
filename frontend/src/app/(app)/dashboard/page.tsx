@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertCircle, CalendarDays, Users, Wallet } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, CalendarClock, Stethoscope, UserRound, Users, Wallet } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import {
   Card,
@@ -11,13 +12,16 @@ import {
   SkeletonCard,
   StatCard,
   StatusPill,
+  Table,
+  Td,
+  Th,
+  Tr,
 } from "@/components/ui";
 import { useDashboardStats } from "@/hooks/useDashboard";
-import { appointmentStatusLabel, appointmentStatusTone } from "@/lib/appointment";
 import { formatCurrency } from "@/lib/invoice";
-import { formatTime } from "@/lib/schedule";
+import { statusLabel, statusTone } from "@/lib/patient";
 import { useAuthStore } from "@/stores/authStore";
-import type { Appointment } from "@/types/appointment";
+import type { RecentPatient, TherapistCapacity } from "@/types/dashboard";
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -48,15 +52,14 @@ export default function DashboardPage() {
           <>
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard
-                label="Active patients"
-                value={data.active_patients}
+                label="Patients seen today"
+                value={data.patients_seen_today}
                 icon={<Users className="size-5" />}
               />
               <StatCard
-                label="Appointments today"
-                value={data.appointments_today}
-                hint={`${data.appointments_completed_today} completed`}
-                icon={<CalendarDays className="size-5" />}
+                label="Therapists on duty"
+                value={data.therapists_on_duty_today}
+                icon={<Stethoscope className="size-5" />}
               />
               <StatCard
                 label="Revenue today"
@@ -64,38 +67,73 @@ export default function DashboardPage() {
                 icon={<Wallet className="size-5" />}
               />
               <StatCard
-                label="Outstanding"
-                value={formatCurrency(data.outstanding_total)}
-                hint={`${data.outstanding_count} unpaid ${data.outstanding_count === 1 ? "invoice" : "invoices"}`}
-                icon={<AlertCircle className="size-5" />}
+                label="Open slots today"
+                value={data.open_slots_today}
+                hint="Across all therapists on duty"
+                icon={<CalendarClock className="size-5" />}
               />
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Today&apos;s schedule</CardTitle>
-                <span className="text-sm text-muted">
-                  {data.todays_appointments.length}{" "}
-                  {data.todays_appointments.length === 1 ? "appointment" : "appointments"}
-                </span>
-              </CardHeader>
-              <CardBody className="p-0">
-                {data.todays_appointments.length === 0 ? (
-                  <EmptyState
-                    className="border-0"
-                    icon={<CalendarDays className="size-8" />}
-                    title="Nothing booked today"
-                    description="New appointments will show up here as they're scheduled."
-                  />
-                ) : (
-                  <ul className="divide-y divide-border">
-                    {data.todays_appointments.map((appt) => (
-                      <AppointmentRow key={appt.id} appointment={appt} />
-                    ))}
-                  </ul>
-                )}
-              </CardBody>
-            </Card>
+            <div className="grid gap-6 lg:grid-cols-5">
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Therapist capacity</CardTitle>
+                  <span className="text-sm text-muted">Booked vs. free today</span>
+                </CardHeader>
+                <CardBody className="p-0">
+                  {data.capacity.length === 0 ? (
+                    <EmptyState
+                      className="border-0"
+                      icon={<Stethoscope className="size-8" />}
+                      title="No therapists on duty"
+                      description="No one is scheduled to work today."
+                    />
+                  ) : (
+                    <ul className="divide-y divide-border">
+                      {data.capacity.map((row) => (
+                        <CapacityRow key={row.therapist.id} row={row} />
+                      ))}
+                    </ul>
+                  )}
+                </CardBody>
+              </Card>
+
+              <Card className="lg:col-span-3">
+                <CardHeader>
+                  <CardTitle>Recent patients</CardTitle>
+                  <Link href="/patients" className="text-sm font-medium text-primary hover:underline">
+                    View all
+                  </Link>
+                </CardHeader>
+                <CardBody className="p-0">
+                  {data.recent_patients.length === 0 ? (
+                    <EmptyState
+                      className="border-0"
+                      icon={<UserRound className="size-8" />}
+                      title="No patients yet"
+                      description="Newly added patients will appear here."
+                    />
+                  ) : (
+                    <Table>
+                      <thead>
+                        <tr>
+                          <Th>Patient</Th>
+                          <Th>Condition</Th>
+                          <Th>Package</Th>
+                          <Th>Therapist</Th>
+                          <Th>Status</Th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.recent_patients.map((patient) => (
+                          <RecentPatientRow key={patient.id} patient={patient} />
+                        ))}
+                      </tbody>
+                    </Table>
+                  )}
+                </CardBody>
+              </Card>
+            </div>
           </>
         )}
       </div>
@@ -103,19 +141,43 @@ export default function DashboardPage() {
   );
 }
 
-function AppointmentRow({ appointment }: { appointment: Appointment }) {
+function CapacityRow({ row }: { row: TherapistCapacity }) {
+  const bookedPct = row.total > 0 ? Math.round((row.booked / row.total) * 100) : 0;
   return (
-    <li className="flex items-center gap-4 px-5 py-3">
-      <span className="w-32 shrink-0 font-mono text-sm text-muted">
-        {formatTime(appointment.start_time)} – {formatTime(appointment.end_time)}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-foreground">{appointment.patient.full_name}</p>
-        <p className="truncate text-sm text-muted">{appointment.therapist.full_name}</p>
+    <li className="px-5 py-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground">{row.therapist.full_name}</p>
+          <p className="truncate text-xs text-muted">{row.therapist.specialty}</p>
+        </div>
+        <span className="shrink-0 font-mono text-sm text-muted">
+          {row.booked}/{row.total} booked
+        </span>
       </div>
-      <StatusPill tone={appointmentStatusTone(appointment.status)}>
-        {appointmentStatusLabel(appointment.status)}
-      </StatusPill>
+      <div className="mt-2 flex items-center gap-3">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-primary-soft">
+          <div className="h-full rounded-full bg-primary" style={{ width: `${bookedPct}%` }} />
+        </div>
+        <span className="shrink-0 text-xs font-medium text-success">{row.open} open</span>
+      </div>
     </li>
+  );
+}
+
+function RecentPatientRow({ patient }: { patient: RecentPatient }) {
+  return (
+    <Tr>
+      <Td>
+        <Link href={`/patients/${patient.id}`} className="font-medium text-foreground hover:text-primary">
+          {patient.full_name}
+        </Link>
+      </Td>
+      <Td className="max-w-[14rem] truncate text-muted">{patient.condition || "—"}</Td>
+      <Td className="text-muted">{patient.package || "—"}</Td>
+      <Td className="text-muted">{patient.assigned_therapist?.full_name ?? "Unassigned"}</Td>
+      <Td>
+        <StatusPill tone={statusTone(patient.status)}>{statusLabel(patient.status)}</StatusPill>
+      </Td>
+    </Tr>
   );
 }
