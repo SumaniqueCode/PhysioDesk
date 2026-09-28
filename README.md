@@ -86,6 +86,22 @@ API runs at http://localhost:8000. Interactive OpenAPI/Swagger docs:
 matches the docker Postgres. To use a local Postgres instead, create a `physiodesk` database and set
 `DATABASE_URL` in `backend/.env` to your own credentials.
 
+## Testing
+
+The backend ships with an integration + unit suite (pytest — auth, RBAC, patient, scheduling,
+billing, and therapist-roster flows). It runs against a dedicated database so it never touches
+development data:
+
+```bash
+cd backend
+createdb physiodesk_test          # once; or run CREATE DATABASE physiodesk_test; in psql/pgAdmin
+pytest -q
+```
+
+By default the test database name is derived from `DATABASE_URL` (swapping the name to
+`physiodesk_test`); set `TEST_DATABASE_URL` to point elsewhere. CI runs the same suite against a
+disposable Postgres service on every push.
+
 ## Documentation
 
 - [Design system](docs/design-system.md) — colors, typography, layout conventions, components
@@ -97,14 +113,22 @@ Decisions made where the spec left room:
 
 - **Roles** — Admin has full access. Staff/Receptionist is read-only on Billing and cannot manage
   Therapists. Enforced server-side, not just hidden in the UI.
-- **Therapist deletion** — soft delete (`is_active = false`) so history stays intact; blocked while
-  the therapist has future booked appointments.
+- **Therapist deletion** — soft delete (`is_active = false`) rather than a hard delete, so existing
+  appointments and invoices stay intact and attributable. A deactivated therapist drops off the
+  roster and scheduling grid (no new bookings) but their past and future appointments are preserved;
+  a patient's assignment to a removed therapist is kept and simply flagged inactive.
 - **Scheduling** — time slots are derived from a therapist's working hours + slot duration (minus
   per-date overrides); double-booking is prevented by a DB unique constraint plus a service check.
   Single clinic-local timezone.
-- **Patients** — status is `active`, `completed`, or `on_hold`; session history derives from
+- **Patients** — status is `active`, `completed`, or `on_hold`; `gender` is one of
+  male/female/other (optional), and `package` is a treatment plan chosen from a fixed list. The
+  spec's "condition" is captured as free-text medical notes. Session history derives from
   appointments and billing history from invoices.
-- **Billing** — invoice status is `paid` or `due`; "void" deletes the invoice record.
+- **Billing** — invoice status is `paid` or `due`; "void" deletes the invoice record. Amounts are
+  USD, stored as `Decimal` and serialized as JSON strings to avoid floating-point drift.
+- **Dashboard** — "today" is computed server-side in UTC so it matches how payments are timestamped;
+  stats and the therapist-capacity view are live-computed, never hardcoded. "Recent patients" shows
+  the last 8 added.
 
 ## Test Credentials
 
@@ -115,4 +139,18 @@ Created by the seed script:
 | Admin | `admin@physiodesk.com` | `Admin@123` |
 | Staff | `staff@physiodesk.com` | `Staff@123` |
 
-Admin has full access; Staff is restricted (read-only Billing, no Therapist management).
+Admin has full access; Staff is restricted (read-only Billing, no Therapist management). Both
+credentials are also shown on the login screen for convenience.
+
+## What I'd Do Differently / With More Time
+
+- **Printable/exportable invoices** — the billing bonus; a dedicated print view per invoice.
+- **Refresh-token rotation & logout-everywhere** — currently a single refresh token per session.
+- **Configurable timezone** — "today" is UTC clinic-wide; a real deployment would store the clinic's
+  timezone and compute day windows against it.
+- **Richer scheduling** — drag-to-reschedule on the grid and a conflict warning *before* submit,
+  rather than relying on the server's 409.
+- **Frontend tests** — the suite is backend-only right now; component/interaction tests (Vitest +
+  Testing Library) would cover the forms and RBAC gating.
+- **Full Dockerization** — `docker-compose` runs Postgres today; adding the backend and frontend
+  services would make `docker compose up` a one-command review environment.
