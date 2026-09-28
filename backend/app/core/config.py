@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     trust_proxy: bool = False
     rate_limit_storage_uri: str = "memory://"
 
+    @field_validator("database_url")
+    @classmethod
+    def _use_asyncpg_driver(cls, value: str) -> str:
+        # Hosted providers (e.g. Render) hand out postgres:// or postgresql:// URLs with
+        # libpq's sslmode; the async engine needs the asyncpg driver and its `ssl` param.
+        for prefix in ("postgres://", "postgresql://"):
+            if value.startswith(prefix):
+                value = "postgresql+asyncpg://" + value.removeprefix(prefix)
+                break
+        return value.replace("sslmode=", "ssl=")
+
     @field_validator("jwt_secret")
     @classmethod
     def _secret_strong_enough(cls, value: str) -> str:
