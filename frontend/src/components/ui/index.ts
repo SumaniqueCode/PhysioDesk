@@ -4,6 +4,7 @@ export { StatusPill, type StatusPillProps } from "./StatusPill";
 export { Card, CardHeader, CardTitle, CardBody } from "./Card";
 export { HistoryCard, type HistoryCardProps } from "./HistoryCard";
 export { StatCard, type StatCardProps } from "./StatCard";
+export { FieldLabel, FieldMeta, type FieldLabelProps } from "./FieldLabel";
 export { Input, type InputProps } from "./Input";
 export { Select, type SelectProps, type SelectOption } from "./Select";
 export { Textarea, type TextareaProps } from "./Textarea";

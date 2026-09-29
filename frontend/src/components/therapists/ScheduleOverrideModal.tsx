@@ -4,12 +4,14 @@ import { useEffect } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button, Checkbox, Input, Modal } from "@/components/ui";
+import { Button, Checkbox, Modal } from "@/components/ui";
+import { TextField } from "@/components/form/Fields";
+import { requiredDate } from "@/lib/validation";
 import { useSetOverride } from "@/hooks/useTherapists";
 
 const schema = z
   .object({
-    date: z.string().min(1, "Date is required"),
+    date: requiredDate("Date"),
     is_day_off: z.boolean(),
     start_time: z.string(),
     end_time: z.string(),
@@ -38,13 +40,11 @@ export function ScheduleOverrideModal({
   onClose: () => void;
 }) {
   const setOverride = useSetOverride(therapistId);
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULTS });
+  const { handleSubmit, control, reset } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: DEFAULTS,
+    mode: "onTouched",
+  });
 
   useEffect(() => {
     if (open) reset(DEFAULTS);
@@ -70,9 +70,10 @@ export function ScheduleOverrideModal({
       onClose={onClose}
       title="Schedule override"
       description="Mark a single date as a day off, or give it custom hours."
+      size="lg"
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <Input label="Date" type="date" error={errors.date?.message} {...register("date")} />
+        <TextField control={control} name="date" label="Date" type="date" required />
 
         <Controller
           control={control}
@@ -87,9 +88,9 @@ export function ScheduleOverrideModal({
         />
 
         {!isDayOff && (
-          <div className="flex gap-4">
-            <Input label="Start time" type="time" error={errors.start_time?.message} {...register("start_time")} />
-            <Input label="End time" type="time" error={errors.end_time?.message} {...register("end_time")} />
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <TextField control={control} name="start_time" label="Start time" type="time" required />
+            <TextField control={control} name="end_time" label="End time" type="time" required />
           </div>
         )}
 
