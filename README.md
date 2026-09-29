@@ -3,6 +3,14 @@
 A clinic-management application for a physiotherapy practice: patient records, scheduling,
 billing, therapist roster, and a live dashboard — with role-based access control.
 
+## Live Demo
+
+**https://physio-desk-sepia.vercel.app**
+
+Sign in with the [test credentials](#test-credentials) below. API docs (Swagger):
+[/docs](https://physio-desk-sepia.vercel.app/docs). Health check:
+[/api/v1/health](https://physio-desk-sepia.vercel.app/api/v1/health).
+
 ## Tech Stack
 
 | Layer | Choice |
@@ -101,6 +109,31 @@ pytest -q
 By default the test database name is derived from `DATABASE_URL` (swapping the name to
 `physiodesk_test`); set `TEST_DATABASE_URL` to point elsewhere. CI runs the same suite against a
 disposable Postgres service on every push.
+
+## Deployment
+
+The live demo runs as a single Vercel project using
+[Vercel Services](https://vercel.com/docs/services), configured in [`vercel.json`](vercel.json):
+
+| Part | Where |
+| --- | --- |
+| Frontend (Next.js) | Vercel service `frontend`, serves every other path |
+| Backend (FastAPI) | Vercel service `backend`, serves `/api/*`, plus `/docs` and `/openapi.json` for Swagger |
+| Database (PostgreSQL) | Render |
+
+The frontend and API share one domain, so no CORS setup is needed. Environment variables set in
+Vercel:
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | Render's **External** database URL. `postgres://` URLs are converted to the asyncpg driver automatically |
+| `JWT_SECRET` | Random string, at least 32 characters |
+| `ENVIRONMENT` | `production` (sends the refresh cookie with the `Secure` flag) |
+| `TRUST_PROXY` | `true` (rate limiting reads the client IP from `X-Forwarded-For`) |
+| `NEXT_PUBLIC_API_URL` | `/api/v1` |
+
+Migrations and the seed script are run against the Render database from a local machine, with
+`DATABASE_URL` pointing at it (`alembic upgrade head`, then `python -m scripts.seed`).
 
 ## Documentation
 
