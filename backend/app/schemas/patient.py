@@ -18,7 +18,7 @@ class PatientBase(BaseModel):
     gender: PatientGender | None = None
     address: str | None = Field(default=None, max_length=255)
     package: str | None = Field(default=None, max_length=120)
-    medical_notes: str | None = None
+    medical_notes: str | None = Field(default=None, max_length=2000)
     status: PatientStatus = PatientStatus.active
     assigned_therapist_id: int | None = None
 
@@ -40,7 +40,7 @@ class PatientUpdate(BaseModel):
     gender: PatientGender | None = None
     address: str | None = Field(default=None, max_length=255)
     package: str | None = Field(default=None, max_length=120)
-    medical_notes: str | None = None
+    medical_notes: str | None = Field(default=None, max_length=2000)
     status: PatientStatus | None = None
     assigned_therapist_id: int | None = None
 

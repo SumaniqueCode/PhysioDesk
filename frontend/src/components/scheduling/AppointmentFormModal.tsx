@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button, Input, Modal, Select, Textarea, type SelectOption } from "@/components/ui";
+import { Button, Modal, type SelectOption } from "@/components/ui";
+import { SelectField, TextField, TextareaField } from "@/components/form/Fields";
+import { LIMITS, optionalText, requiredChoice, requiredDate } from "@/lib/validation";
 import { APPOINTMENT_STATUSES, PAYMENT_METHODS } from "@/lib/appointment";
 import { formatTime } from "@/lib/schedule";
 import { useActiveTherapists } from "@/hooks/useTherapists";
@@ -23,13 +25,13 @@ export interface AppointmentPrefill {
 }
 
 const schema = z.object({
-  patient_id: z.string().min(1, "Select a patient"),
-  therapist_id: z.string().min(1, "Select a therapist"),
-  date: z.string().min(1, "Pick a date"),
-  start_time: z.string().min(1, "Select a time"),
-  payment_method: z.enum(["cash", "card", "insurance"]),
-  status: z.enum(["scheduled", "completed"]),
-  notes: z.string().max(2000),
+  patient_id: requiredChoice("Patient"),
+  therapist_id: requiredChoice("Therapist"),
+  date: requiredDate("Date"),
+  start_time: requiredChoice("Time slot"),
+  payment_method: z.enum(["cash", "card", "insurance"], "Select a payment method"),
+  status: z.enum(["scheduled", "completed"], "Select a status"),
+  notes: optionalText("Notes", LIMITS.notes),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -71,14 +73,14 @@ export function AppointmentFormModal({
   const { data: patients } = useAllPatients();
   const { data: therapists } = useActiveTherapists();
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    setValue,
-    formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: defaults(appointment, prefill) });
+  const { handleSubmit, control, reset, setValue } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: defaults(appointment, prefill),
+    mode: "onTouched",
+  });
+
+  // A slot only exists for one therapist/date pair, so changing either invalidates the pick.
+  const clearSlot = () => setValue("start_time", "");
 
   useEffect(() => {
     if (open) reset(defaults(appointment, prefill));
@@ -151,7 +153,7 @@ export function AppointmentFormModal({
       onClose={onClose}
       title={isEdit ? "Edit appointment" : "Book appointment"}
       description={isEdit ? undefined : "Pick a patient, therapist and an open slot."}
-      className="max-w-lg"
+      size="lg"
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         {isEdit ? (
@@ -161,117 +163,80 @@ export function AppointmentFormModal({
           </div>
         ) : (
           <>
-            <Controller
+            <SelectField
               control={control}
               name="patient_id"
-              render={({ field }) => (
-                <Select
-                  label="Patient"
-                  options={patientOptions}
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="Select a patient"
-                  error={errors.patient_id?.message}
-                />
-              )}
+              label="Patient"
+              required
+              placeholder="Select a patient"
+              options={patientOptions}
             />
-            <Controller
+            <SelectField
               control={control}
               name="therapist_id"
-              render={({ field }) => (
-                <Select
-                  label="Therapist"
-                  options={therapistOptions}
-                  value={field.value}
-                  onChange={(v) => {
-                    field.onChange(v);
-                    setValue("start_time", "");
-                  }}
-                  placeholder="Select a therapist"
-                  error={errors.therapist_id?.message}
-                />
-              )}
+              label="Therapist"
+              required
+              placeholder="Select a therapist"
+              options={therapistOptions}
+              onValueChange={clearSlot}
             />
           </>
         )}
 
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Controller
+          <TextField
             control={control}
             name="date"
-            render={({ field }) => (
-              <Input
-                label="Date"
-                type="date"
-                value={field.value}
-                onChange={(e) => {
-                  field.onChange(e.target.value);
-                  setValue("start_time", "");
-                }}
-                error={errors.date?.message}
-              />
-            )}
+            label="Date"
+            type="date"
+            required
+            onValueChange={clearSlot}
           />
-          <Controller
+          <SelectField
             control={control}
             name="start_time"
-            render={({ field }) => (
-              <Select
-                label="Time slot"
-                options={slotOptions}
-                value={field.value}
-                onChange={field.onChange}
-                placeholder={
-                  !therapistId || !date
-                    ? "Pick therapist & date"
-                    : loadingSlots
-                      ? "Loading…"
-                      : slotOptions.length === 0
-                        ? "No open slots"
-                        : "Select a time"
-                }
-                disabled={!therapistId || !date || loadingSlots}
-                error={errors.start_time?.message}
-              />
-            )}
+            label="Time slot"
+            required
+            options={slotOptions}
+            placeholder={
+              !therapistId || !date
+                ? "Pick therapist & date"
+                : loadingSlots
+                  ? "Loading…"
+                  : slotOptions.length === 0
+                    ? "No open slots"
+                    : "Select a time"
+            }
+            disabled={!therapistId || !date || loadingSlots}
           />
         </div>
 
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Controller
+          <SelectField
             control={control}
             name="payment_method"
-            render={({ field }) => (
-              <Select
-                label="Payment method"
-                options={PAYMENT_METHODS}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
+            label="Payment method"
+            required
+            options={PAYMENT_METHODS}
           />
           {isEdit && (
-            <Controller
+            <SelectField
               control={control}
               name="status"
-              render={({ field }) => (
-                <Select
-                  label="Status"
-                  options={APPOINTMENT_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
+              label="Status"
+              required
+              options={APPOINTMENT_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
             />
           )}
         </div>
 
-        <Textarea
+        <TextareaField
+          control={control}
+          name="notes"
           label="Notes"
           rows={3}
+          maxLength={LIMITS.notes}
           placeholder="Reason for visit, treatment plan…"
-          error={errors.notes?.message}
-          {...register("notes")}
         />
 
         <div className="mt-2 flex items-center gap-3">

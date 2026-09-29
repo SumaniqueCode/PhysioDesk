@@ -11,9 +11,10 @@ import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { useLogin } from "@/hooks/useAuth";
 import { useAuthStore } from "@/stores/authStore";
+import { requiredEmail } from "@/lib/validation";
 
 const schema = z.object({
-  email: z.string().min(1, "Email is required").email("Enter a valid email"),
+  email: requiredEmail,
   password: z.string().min(1, "Password is required"),
 });
 type FormValues = z.infer<typeof schema>;
@@ -27,7 +28,11 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { email: "", password: "" } });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: "", password: "" },
+    mode: "onTouched",
+  });
 
   // Redirect a visitor who is already signed in; a fresh login is handled in useLogin.onSuccess.
   useEffect(() => {
@@ -47,6 +52,7 @@ export default function LoginPage() {
           <Input
             label="Email"
             type="email"
+            required
             autoComplete="email"
             placeholder="you@physiodesk.com"
             icon={<Mail className="size-4" />}
@@ -56,6 +62,7 @@ export default function LoginPage() {
           <Input
             label="Password"
             type={showPassword ? "text" : "password"}
+            required
             autoComplete="current-password"
             placeholder="••••••••"
             icon={<Lock className="size-4" />}

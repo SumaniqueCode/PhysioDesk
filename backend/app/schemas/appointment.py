@@ -1,6 +1,6 @@
 import datetime as dt
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.appointment import AppointmentStatus, PaymentMethod
 from app.models.patient import PatientStatus
@@ -28,7 +28,7 @@ class AppointmentCreate(BaseModel):
     date: dt.date
     start_time: dt.time
     payment_method: PaymentMethod
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class AppointmentUpdate(BaseModel):
@@ -37,7 +37,7 @@ class AppointmentUpdate(BaseModel):
     start_time: dt.time | None = None
     status: AppointmentStatus | None = None
     payment_method: PaymentMethod | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class AppointmentRead(BaseModel):

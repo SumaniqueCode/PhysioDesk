@@ -1,5 +1,6 @@
 import { forwardRef, type InputHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { FieldLabel, FieldMeta } from "./FieldLabel";
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -9,16 +10,18 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, icon, trailing, className, id, name, ...props },
+  { label, error, icon, trailing, className, id, name, required, maxLength, ...props },
   ref,
 ) {
   const inputId = id ?? name;
+  // A counter needs the live value, so it only shows for controlled inputs with a limit.
+  const length = typeof props.value === "string" ? props.value.length : undefined;
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-foreground">
+        <FieldLabel htmlFor={inputId} required={required} length={length} maxLength={maxLength}>
           {label}
-        </label>
+        </FieldLabel>
       )}
       <div
         className={cn(
@@ -33,13 +36,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           ref={ref}
           id={inputId}
           name={name}
+          maxLength={maxLength}
           className={cn("h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted", className)}
           aria-invalid={!!error}
+          aria-required={required || undefined}
           {...props}
         />
         {trailing && <span className="text-muted">{trailing}</span>}
       </div>
-      {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}
+      <FieldMeta error={error} />
     </div>
   );
 });

@@ -17,7 +17,7 @@ class InvoiceCreate(BaseModel):
     status: InvoiceStatus = InvoiceStatus.due
     payment_method: PaymentMethod
     issued_date: dt.date | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class InvoiceUpdate(BaseModel):
@@ -27,7 +27,7 @@ class InvoiceUpdate(BaseModel):
     status: InvoiceStatus | None = None
     payment_method: PaymentMethod | None = None
     issued_date: dt.date | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class InvoiceRead(BaseModel):

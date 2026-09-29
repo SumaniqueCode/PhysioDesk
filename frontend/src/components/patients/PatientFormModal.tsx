@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button, Input, Modal, Select, Textarea, type SelectOption } from "@/components/ui";
+import { Button, Modal, type SelectOption } from "@/components/ui";
+import { SelectField, TextField, TextareaField } from "@/components/form/Fields";
+import { todayISO } from "@/lib/appointment";
+import { LIMITS, onlyPhone, optionalEmail, optionalPhone, optionalText, personName } from "@/lib/validation";
 import { PATIENT_GENDERS, PATIENT_PACKAGES, PATIENT_STATUSES } from "@/lib/patient";
 import { useActiveTherapists } from "@/hooks/useTherapists";
 import { useCreatePatient, useUpdatePatient } from "@/hooks/usePatients";
@@ -12,21 +15,23 @@ import type { Patient, PatientGender, PatientPayload } from "@/types/patient";
 
 const UNASSIGNED = "";
 
+// The oldest plausible birth date; anything earlier is almost certainly a typo.
+const MIN_DOB = "1900-01-01";
+
 const schema = z.object({
-  full_name: z.string().trim().min(1, "Name is required").max(120),
-  email: z.union([z.literal(""), z.email("Enter a valid email")]),
-  phone: z.string().trim().max(30),
+  full_name: personName("Full name"),
+  email: optionalEmail,
+  phone: optionalPhone,
   date_of_birth: z
     .string()
-    .refine((v) => !v || v <= new Date().toISOString().slice(0, 10), {
-      message: "Date of birth can't be in the future",
-    }),
+    .refine((v) => !v || v <= todayISO(), "Date of birth can't be in the future")
+    .refine((v) => !v || v >= MIN_DOB, "Enter a date of birth after 1900"),
   gender: z.enum(["", "male", "female", "other"]),
-  address: z.string().trim().max(255),
+  address: optionalText("Address", LIMITS.address),
   package: z.string().max(120),
-  status: z.enum(["active", "on_hold", "completed"]),
+  status: z.enum(["active", "on_hold", "completed"], "Select a status"),
   assigned_therapist_id: z.string(),
-  medical_notes: z.string().max(2000),
+  medical_notes: optionalText("Medical notes", LIMITS.notes),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -96,13 +101,11 @@ export function PatientFormModal({
     return options;
   }, [therapists, patient]);
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: defaults(patient) });
+  const { handleSubmit, control, reset } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: defaults(patient),
+    mode: "onTouched",
+  });
 
   // Re-seed the form each time the modal opens for a (possibly different) patient.
   useEffect(() => {
@@ -120,87 +123,105 @@ export function PatientFormModal({
       onClose={onClose}
       title={isEdit ? "Edit patient" : "Add patient"}
       description={isEdit ? undefined : "Record the patient's contact details and assigned therapist."}
-      className="max-w-lg"
+      size="lg"
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <Input label="Full name" placeholder="Jane Doe" error={errors.full_name?.message} {...register("full_name")} />
+        <TextField
+          control={control}
+          name="full_name"
+          label="Full name"
+          required
+          placeholder="Jane Doe"
+          autoComplete="name"
+          maxLength={LIMITS.name}
+        />
 
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Input label="Email" type="email" placeholder="jane@example.com" error={errors.email?.message} {...register("email")} />
-          <Input label="Phone" placeholder="555-0100" error={errors.phone?.message} {...register("phone")} />
+          <TextField
+            control={control}
+            name="email"
+            label="Email"
+            type="email"
+            placeholder="jane@example.com"
+            autoComplete="email"
+            maxLength={LIMITS.email}
+          />
+          <TextField
+            control={control}
+            name="phone"
+            label="Phone"
+            type="tel"
+            inputMode="tel"
+            placeholder="555-0100"
+            autoComplete="tel"
+            maxLength={LIMITS.phone}
+            sanitize={onlyPhone}
+          />
         </div>
 
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Input label="Date of birth" type="date" error={errors.date_of_birth?.message} {...register("date_of_birth")} />
-          <Controller
+          <TextField
+            control={control}
+            name="date_of_birth"
+            label="Date of birth"
+            type="date"
+            min={MIN_DOB}
+            max={todayISO()}
+          />
+          <SelectField
             control={control}
             name="gender"
-            render={({ field }) => (
-              <Select
-                label="Gender"
-                options={[
-                  { value: "", label: "Unspecified" },
-                  ...PATIENT_GENDERS.map((g) => ({ value: g.value, label: g.label })),
-                ]}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
+            label="Gender"
+            options={[
+              { value: "", label: "Unspecified" },
+              ...PATIENT_GENDERS.map((g) => ({ value: g.value, label: g.label })),
+            ]}
           />
         </div>
 
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Input label="Address" placeholder="12 Rosewood Ave" error={errors.address?.message} {...register("address")} />
-          <Controller
+          <TextField
+            control={control}
+            name="address"
+            label="Address"
+            placeholder="12 Rosewood Ave"
+            autoComplete="street-address"
+            maxLength={LIMITS.address}
+          />
+          <SelectField
             control={control}
             name="package"
-            render={({ field }) => (
-              <Select
-                label="Package"
-                options={[
-                  { value: "", label: "No package" },
-                  ...PATIENT_PACKAGES.map((p) => ({ value: p, label: p })),
-                ]}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
+            label="Package"
+            options={[
+              { value: "", label: "No package" },
+              ...PATIENT_PACKAGES.map((p) => ({ value: p, label: p })),
+            ]}
           />
         </div>
 
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Controller
+          <SelectField
             control={control}
             name="status"
-            render={({ field }) => (
-              <Select
-                label="Status"
-                options={PATIENT_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
+            label="Status"
+            required
+            options={PATIENT_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
           />
-          <Controller
+          <SelectField
             control={control}
             name="assigned_therapist_id"
-            render={({ field }) => (
-              <Select
-                label="Assigned therapist"
-                options={therapistOptions}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
+            label="Assigned therapist"
+            options={therapistOptions}
           />
         </div>
 
-        <Textarea
+        <TextareaField
+          control={control}
+          name="medical_notes"
           label="Medical notes"
           rows={3}
+          maxLength={LIMITS.notes}
           placeholder="Conditions, referral reason, treatment plan…"
-          error={errors.medical_notes?.message}
-          {...register("medical_notes")}
         />
 
         <div className="mt-2 flex justify-end gap-3">

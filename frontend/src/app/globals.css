@@ -59,6 +59,33 @@ body {
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Warm scrollbars on every scroll container (page, modal bodies, dropdowns) instead of OS grey. */
+:root {
+  --scrollbar-thumb: color-mix(in srgb, var(--primary) 45%, var(--border));
+  --scrollbar-thumb-hover: var(--primary);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+/* Engines without `scrollbar-color` (older Safari) fall back to the WebKit pseudo-elements. */
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+}
+
 /* Theme react-toastify to the PhysioDesk palette (CSS imported in providers.tsx). */
 :root {
   --toastify-font-family: var(--font-inter) !important;

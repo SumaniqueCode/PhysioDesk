@@ -4,8 +4,10 @@ import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button, Input, Modal, Select } from "@/components/ui";
+import { Button, FieldLabel, FieldMeta, Modal, Select } from "@/components/ui";
+import { TextField } from "@/components/form/Fields";
 import { cn } from "@/lib/cn";
+import { LIMITS, personName, requiredText } from "@/lib/validation";
 import { WEEKDAYS, toTimeInput } from "@/lib/schedule";
 import { useCreateTherapist, useUpdateTherapist } from "@/hooks/useTherapists";
 import type { Therapist } from "@/types/therapist";
@@ -14,8 +16,8 @@ const SLOT_OPTIONS = [15, 30, 45, 60, 90].map((m) => ({ value: String(m), label:
 
 const schema = z
   .object({
-    full_name: z.string().trim().min(1, "Name is required").max(120),
-    specialty: z.string().trim().min(1, "Specialty is required").max(120),
+    full_name: personName("Full name"),
+    specialty: requiredText("Specialty", LIMITS.specialty),
     working_days: z.array(z.number()).min(1, "Select at least one working day"),
     start_time: z.string().min(1, "Start time is required"),
     end_time: z.string().min(1, "End time is required"),
@@ -54,13 +56,11 @@ export function TherapistFormModal({
   const update = useUpdateTherapist(therapist?.id ?? 0);
   const pending = create.isPending || update.isPending;
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: defaults(therapist) });
+  const { handleSubmit, control, reset } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: defaults(therapist),
+    mode: "onTouched",
+  });
 
   // Re-seed the form each time the modal opens for a (possibly different) therapist.
   useEffect(() => {
@@ -78,20 +78,34 @@ export function TherapistFormModal({
       onClose={onClose}
       title={isEdit ? "Edit therapist" : "Add therapist"}
       description={isEdit ? undefined : "Set the therapist's specialty and weekly availability."}
-      className="max-w-lg"
+      size="lg"
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <Input label="Full name" placeholder="Dr. Jane Doe" error={errors.full_name?.message} {...register("full_name")} />
-        <Input label="Specialty" placeholder="Sports Rehabilitation" error={errors.specialty?.message} {...register("specialty")} />
+        <TextField
+          control={control}
+          name="full_name"
+          label="Full name"
+          required
+          placeholder="Dr. Jane Doe"
+          maxLength={LIMITS.name}
+        />
+        <TextField
+          control={control}
+          name="specialty"
+          label="Specialty"
+          required
+          placeholder="Sports Rehabilitation"
+          maxLength={LIMITS.specialty}
+        />
 
         <Controller
           control={control}
           name="working_days"
-          render={({ field }) => (
+          render={({ field, fieldState }) => (
             <div role="group" aria-labelledby="working-days-label">
-              <span id="working-days-label" className="mb-1.5 block text-sm font-medium text-foreground">
+              <FieldLabel id="working-days-label" required>
                 Working days
-              </span>
+              </FieldLabel>
               <div className="flex flex-wrap gap-2">
                 {WEEKDAYS.map((day) => {
                   const checked = field.value.includes(day.value);
@@ -119,16 +133,14 @@ export function TherapistFormModal({
                   );
                 })}
               </div>
-              {errors.working_days && (
-                <p className="mt-1.5 text-xs text-danger">{errors.working_days.message}</p>
-              )}
+              <FieldMeta error={fieldState.error?.message} />
             </div>
           )}
         />
 
-        <div className="flex gap-4">
-          <Input label="Start time" type="time" error={errors.start_time?.message} {...register("start_time")} />
-          <Input label="End time" type="time" error={errors.end_time?.message} {...register("end_time")} />
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <TextField control={control} name="start_time" label="Start time" type="time" required />
+          <TextField control={control} name="end_time" label="End time" type="time" required />
         </div>
 
         <Controller
@@ -145,6 +157,7 @@ export function TherapistFormModal({
             return (
               <Select
                 label="Appointment slot"
+                required
                 options={options}
                 value={current}
                 onChange={(v) => field.onChange(Number(v))}

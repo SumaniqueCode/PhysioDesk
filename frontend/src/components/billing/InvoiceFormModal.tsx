@@ -1,31 +1,36 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button, Input, Modal, Select, Textarea, type SelectOption } from "@/components/ui";
+import { Button, Input, Modal, type SelectOption } from "@/components/ui";
+import { SelectField, TextField, TextareaField } from "@/components/form/Fields";
+import {
+  LIMITS,
+  money,
+  onlyMoney,
+  optionalText,
+  requiredChoice,
+  requiredDate,
+  requiredText,
+} from "@/lib/validation";
 import { INVOICE_STATUSES } from "@/lib/invoice";
 import { PAYMENT_METHODS, todayISO } from "@/lib/appointment";
 import { useAllPatients } from "@/hooks/usePatients";
 import { useCreateInvoice, useUpdateInvoice } from "@/hooks/useInvoices";
 import type { Invoice, InvoiceCreatePayload, InvoiceUpdatePayload } from "@/types/invoice";
 
-// Non-negative money with at most two decimals, matching the server's Decimal(scale=2).
-const MONEY_RE = /^\d+(\.\d{1,2})?$/;
-
 const schema = z
   .object({
-    patient_id: z.string().min(1, "Select a patient"),
-    service: z.string().trim().min(1, "Service is required").max(160),
-    amount: z.string().refine((v) => MONEY_RE.test(v), "Enter an amount with up to 2 decimals"),
-    discount: z
-      .string()
-      .refine((v) => v === "" || MONEY_RE.test(v), "Enter a discount with up to 2 decimals"),
-    status: z.enum(["due", "paid"]),
-    payment_method: z.enum(["cash", "card", "insurance"]),
-    issued_date: z.string().min(1, "Pick a date"),
-    notes: z.string().max(2000),
+    patient_id: requiredChoice("Patient"),
+    service: requiredText("Service", LIMITS.service),
+    amount: money("Amount", { required: true }),
+    discount: money("Discount", { required: false }),
+    status: z.enum(["due", "paid"], "Select a status"),
+    payment_method: z.enum(["cash", "card", "insurance"], "Select a payment method"),
+    issued_date: requiredDate("Issue date"),
+    notes: optionalText("Notes", LIMITS.notes),
   })
   // Mirror the server rule so the client catches an over-discount before submitting.
   .refine((v) => Number(v.discount || 0) <= Number(v.amount || 0), {
@@ -89,13 +94,11 @@ export function InvoiceFormModal({
     [patients],
   );
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: defaults(invoice) });
+  const { handleSubmit, control, reset } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: defaults(invoice),
+    mode: "onTouched",
+  });
 
   // Re-seed the form each time the modal opens for a (possibly different) invoice.
   useEffect(() => {
@@ -116,91 +119,77 @@ export function InvoiceFormModal({
       onClose={onClose}
       title={isEdit ? "Edit invoice" : "New invoice"}
       description={isEdit ? undefined : "Record the service, amount, and payment status."}
-      className="max-w-lg"
+      size="lg"
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         {isEdit ? (
           <Input label="Patient" value={invoice?.patient?.full_name ?? "—"} readOnly disabled />
         ) : (
-          <Controller
+          <SelectField
             control={control}
             name="patient_id"
-            render={({ field }) => (
-              <Select
-                label="Patient"
-                placeholder="Select a patient"
-                options={patientOptions}
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.patient_id?.message}
-              />
-            )}
+            label="Patient"
+            required
+            placeholder="Select a patient"
+            options={patientOptions}
           />
         )}
 
-        <Input
+        <TextField
+          control={control}
+          name="service"
           label="Service"
+          required
           placeholder="Rehabilitation session"
-          error={errors.service?.message}
-          {...register("service")}
+          maxLength={LIMITS.service}
         />
 
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Input
+          <TextField
+            control={control}
+            name="amount"
             label="Amount"
-            type="number"
-            step="0.01"
-            min="0"
+            required
+            inputMode="decimal"
             placeholder="0.00"
-            error={errors.amount?.message}
-            {...register("amount")}
+            sanitize={onlyMoney}
           />
-          <Input
+          <TextField
+            control={control}
+            name="discount"
             label="Discount"
-            type="number"
-            step="0.01"
-            min="0"
+            inputMode="decimal"
             placeholder="0.00"
-            error={errors.discount?.message}
-            {...register("discount")}
+            sanitize={onlyMoney}
           />
         </div>
 
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Controller
+          <SelectField
             control={control}
             name="status"
-            render={({ field }) => (
-              <Select
-                label="Status"
-                options={INVOICE_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
+            label="Status"
+            required
+            options={INVOICE_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
           />
-          <Controller
+          <SelectField
             control={control}
             name="payment_method"
-            render={({ field }) => (
-              <Select
-                label="Payment method"
-                options={PAYMENT_METHODS.map((m) => ({ value: m.value, label: m.label }))}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
+            label="Payment method"
+            required
+            options={PAYMENT_METHODS.map((m) => ({ value: m.value, label: m.label }))}
           />
         </div>
 
-        <Input label="Issue date" type="date" error={errors.issued_date?.message} {...register("issued_date")} />
+        <TextField control={control} name="issued_date" label="Issue date" type="date" required />
 
-        <Textarea
+        <TextareaField
+          control={control}
+          name="notes"
           label="Notes"
           rows={2}
+          maxLength={LIMITS.notes}
           placeholder="Anything worth noting on this invoice…"
-          error={errors.notes?.message}
-          {...register("notes")}
         />
 
         <div className="mt-2 flex justify-end gap-3">
