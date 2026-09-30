@@ -261,17 +261,17 @@ function RowActions({
     <div className="flex justify-end gap-1">
       {invoice.status === "due" && (
         <IconButton
-          aria-label="Mark paid"
+          tooltip="Mark paid"
           disabled={update.isPending}
           onClick={() => update.mutate({ status: "paid" })}
         >
           <CheckCircle2 className="size-4" />
         </IconButton>
       )}
-      <IconButton aria-label="Edit invoice" onClick={onEdit}>
+      <IconButton tooltip="Edit invoice" onClick={onEdit}>
         <Pencil className="size-4" />
       </IconButton>
-      <IconButton aria-label="Void invoice" onClick={onVoid}>
+      <IconButton tooltip="Void invoice" onClick={onVoid}>
         <Trash2 className="size-4" />
       </IconButton>
     </div>

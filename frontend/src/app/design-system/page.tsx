@@ -262,10 +262,10 @@ export default function DesignSystemPage() {
                   <Td className="font-mono text-muted">{p.visit}</Td>
                   <Td>
                     <div className="flex justify-end gap-1">
-                      <IconButton aria-label="View">
+                      <IconButton tooltip="View">
                         <Eye className="size-4" />
                       </IconButton>
-                      <IconButton aria-label="More">
+                      <IconButton tooltip="More">
                         <MoreHorizontal className="size-4" />
                       </IconButton>
                     </div>

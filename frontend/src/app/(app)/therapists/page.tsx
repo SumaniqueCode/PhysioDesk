@@ -191,26 +191,26 @@ export default function TherapistsPage() {
                       <Td onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
                           <IconButton
-                            aria-label="View therapist"
+                            tooltip="View therapist"
                             onClick={() => router.push(`/therapists/${t.id}`)}
                           >
                             <Eye className="size-4" />
                           </IconButton>
                           {isAdmin && (
                             <>
-                              <IconButton aria-label="Edit therapist" onClick={() => setEditing(t)}>
+                              <IconButton tooltip="Edit therapist" onClick={() => setEditing(t)}>
                                 <Pencil className="size-4" />
                               </IconButton>
                               {t.is_active ? (
                                 <IconButton
-                                  aria-label="Deactivate therapist"
+                                  tooltip="Deactivate therapist"
                                   onClick={() => setDeactivating(t)}
                                 >
                                   <UserX className="size-4" />
                                 </IconButton>
                               ) : (
                                 <IconButton
-                                  aria-label="Reactivate therapist"
+                                  tooltip="Reactivate therapist"
                                   disabled={reactivate.isPending}
                                   onClick={() =>
                                     reactivate.mutate(t.id, { onSuccess: stepBackIfLastOnPage })

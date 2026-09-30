@@ -1,5 +1,6 @@
 export { Button, type ButtonProps } from "./Button";
-export { IconButton } from "./IconButton";
+export { IconButton, type IconButtonProps } from "./IconButton";
+export { Tooltip, type TooltipProps, type TooltipSide } from "./Tooltip";
 export { StatusPill, type StatusPillProps } from "./StatusPill";
 export { Card, CardHeader, CardTitle, CardBody } from "./Card";
 export { HistoryCard, type HistoryCardProps } from "./HistoryCard";
