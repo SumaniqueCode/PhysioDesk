@@ -166,7 +166,7 @@ export default function TherapistDetailPage() {
                         {o.is_day_off ? "Day off" : "Custom hours"}
                       </StatusPill>
                       {isAdmin && (
-                        <IconButton aria-label="Remove override" onClick={() => setDeletingDate(o.date)}>
+                        <IconButton tooltip="Remove override" onClick={() => setDeletingDate(o.date)}>
                           <Trash2 className="size-4" />
                         </IconButton>
                       )}

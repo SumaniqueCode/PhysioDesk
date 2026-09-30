@@ -197,15 +197,15 @@ export default function PatientsPage() {
                       <Td onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
                           <IconButton
-                            aria-label="View patient"
+                            tooltip="View patient"
                             onClick={() => router.push(`/patients/${p.id}`)}
                           >
                             <Eye className="size-4" />
                           </IconButton>
-                          <IconButton aria-label="Edit patient" onClick={() => setEditing(p)}>
+                          <IconButton tooltip="Edit patient" onClick={() => setEditing(p)}>
                             <Pencil className="size-4" />
                           </IconButton>
-                          <IconButton aria-label="Delete patient" onClick={() => setDeleting(p)}>
+                          <IconButton tooltip="Delete patient" onClick={() => setDeleting(p)}>
                             <Trash2 className="size-4" />
                           </IconButton>
                         </div>
